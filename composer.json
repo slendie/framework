@@ -1,0 +1,32 @@
+{
+    "name": "lcloss/route",
+    "description": "Slendie framework packages",
+    "keywords": ["php","slendie","framework"],
+    "homepage": "https://slendie.lcloss.dev",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Luciano Closs",
+            "email": "lcloss@lcloss.dev",
+            "homepage": "https://lucianocloss.com",
+            "role": "Developer"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Slendie\\Framework\\": "src/"
+        },
+        "files": [
+            "helpers/routing.php"
+        ]        
+    },
+    "scripts": {
+        "test": "phpunit"
+    },    
+    "minimum-stability": "stable",
+    "require": {
+    },
+    "require-dev": {
+        "phpunit/phpunit": "9"
+    }
+}
