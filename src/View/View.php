@@ -414,11 +414,11 @@ class View
             }
         }
 
-        // @assets('resource')
-        $asset_pattern = '/@assets\([\s]*\'([^\']*)\'[\s]*\)/is';
+        // @asset('resource')
+        $asset_pattern = '/@asset\([\s]*\'([^\']*)\'[\s]*\)/is';
         $matches = $this->loader->extract( $asset_pattern );
-
         foreach( $matches[0] as $i => $found ) {
+            // die($found);
             $link = \asset($matches[1][$i]);
             $this->loader->replace( $found, $link );
         }
