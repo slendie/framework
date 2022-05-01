@@ -3,7 +3,7 @@ namespace Slendie\Framework\Routing;
 
 class Dispatcher
 {
-    public function dispatch( $callback, $params = [], $namespace = "App\\Controller\\" ) 
+    public function dispatch( $callback, $params = [], $namespace = "App\\Http\\Controllers\\" ) 
     {
         if ( is_callable( $callback['callback'] )) {
             return call_user_func_array( $callback['callback'], array_values( $params ));

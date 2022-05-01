@@ -28,11 +28,12 @@ class Environment
 
     public static function setDefaultEnv() {
         $dir = explode( DIRECTORY_SEPARATOR, __DIR__ );
-        if ( count( $dir ) > 4 ) {
-            $path = implode( DIRECTORY_SEPARATOR, array_slice( $dir, 0, -4 )) . DIRECTORY_SEPARATOR;
+        if ( count( $dir ) > 5 ) {
+            $path = implode( DIRECTORY_SEPARATOR, array_slice( $dir, 0, -5 )) . DIRECTORY_SEPARATOR;
         } else {
             throw \Exception(sprint('Cannot determine base path.'));
         }
+        // $path = SITE_FOLDER;
         self::setEnv( $path . '.env ');
     }
 
@@ -69,11 +70,12 @@ class Environment
     {
         if ( "" == self::$base ) {
             $dir = explode( DIRECTORY_SEPARATOR, __DIR__ );
-            if ( count( $dir ) > 4 ) {
-                $path = implode( DIRECTORY_SEPARATOR, array_slice( $dir, 0, -4 )) . DIRECTORY_SEPARATOR;
+            if ( count( $dir ) > 5 ) {
+                $path = implode( DIRECTORY_SEPARATOR, array_slice( $dir, 0, -5 )) . DIRECTORY_SEPARATOR;
             } else {
                 throw \Exception(sprint('Cannot determine base path.'));
             }
+            // $path = SITE_FOLDER;
         } else {
             $path = self::$base;
         }

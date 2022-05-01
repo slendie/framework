@@ -142,7 +142,6 @@ class Loader
         $filename = $this->base() . $this->path() . $template . '.' . $this->extension;
 
         if ( !file_exists( $filename ) ) {
-            // return '';
             throw new \Exception( sprintf('%s file was not found.', $filename));
         }
 
