@@ -1,6 +1,8 @@
 <?php
 namespace Slendie\Framework\View;
 
+use Slendie\Framework\Environment\Environment;
+
 class View
 {
     const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
