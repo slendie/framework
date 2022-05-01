@@ -285,7 +285,7 @@ class View
      */
     private function _replaceYield( String $key, String $content ): void {
         // $yield_pattern = '/@yield\([\s]*' . $key . '[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
-        $yield_pattern = '/@yield\([\s]*' . $key . '[\s]*\)/s';
+        $yield_pattern = '/@yield\([\s]*\'' . $key . '\'[\s]*\)/s';
         $this->loader->pregReplace( $yield_pattern, $content );
     }
 
@@ -306,7 +306,7 @@ class View
      */
     private function _includeIncludes(): void {
         // $includes_pattern = '/@include\([\s]*([' . self::VALID_WORD . ']*)[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
-        $includes_pattern = '/@include\([\s]*([' . self::VALID_WORD . ']*)[\s]*\)/s';
+        $includes_pattern = '/@include\([\s]*\'([' . self::VALID_WORD . ']*)\'[\s]*\)/s';
         $matches = $this->loader->extract( $includes_pattern );
 
         foreach( $matches[0] as $i => $found ) {
