@@ -220,7 +220,7 @@ class View
      * @return void
      */
     private function _extractSections(): void {
-        $sections_pattern = '/@section\([\s]*([' . self::VALID_WORD . ']*)(?:' . self::BREAK_LINE . ')?[\s]*\)(.*?)@endsection(?:' . self::BREAK_LINE . ')?/s';
+        $sections_pattern = '/@section\([\s]*\'([' . self::VALID_WORD . ']*)\'(?:' . self::BREAK_LINE . ')?[\s]*\)(.*?)@endsection(?:' . self::BREAK_LINE . ')?/s';
         $matches = $this->loader->extract( $sections_pattern );
 
         // Just set the sections on internal array
@@ -235,7 +235,7 @@ class View
      * @return void
      */
     private function _mergeExtends(): void {
-        $extends_pattern = '/@extends\([\s]*([' . self::VALID_WORD . ']*)[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
+        $extends_pattern = '/@extends\([\s]*\'([' . self::VALID_WORD . ']*)\'[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
         $matches = $this->loader->extract( $extends_pattern );
 
         foreach( $matches[0] as $i => $found ) {
