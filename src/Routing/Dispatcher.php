@@ -5,6 +5,10 @@ class Dispatcher
 {
     public function dispatch( $callback, $params = [], $namespace = "App\\Http\\Controllers\\" ) 
     {
+        // if ( $callback['callback'] != 'AppController@index' && !empty($callback['callback']) ) {
+        //     dd(['Routing::Dispatcher:dispatch', $callback, $params, $namespace]);
+        // }
+
         if ( is_callable( $callback['callback'] )) {
             return call_user_func_array( $callback['callback'], array_values( $params ));
 

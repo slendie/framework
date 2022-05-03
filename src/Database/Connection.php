@@ -1,6 +1,8 @@
 <?php
 namespace Slendie\Framework\Database;
 
+use Slendie\Framework\Environment\Environment;
+
 use PDO;
 use PDOException;
 
@@ -14,9 +16,9 @@ class Connection
      */
     private function __construct() {}
 
-    private function __clone() {}
+    public function __clone() {}
 
-    private function __wakeup() {}
+    public function __wakeup() {}
 
     /**
      * Make a connection string and generate PDO object
@@ -77,10 +79,11 @@ class Connection
     public static function getInstance(): PDO
     {
         if ( is_null(self::$connection) ) {
-            self::$data = env('database');
+            // self::$data = \env('database');
+            self::$data = Environment::get('database');
             self::$connection = self::make( self::$data );
             self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-            self::$connection->exec("set names utf8");
+            // self::$connection->exec("set names utf8");
         }
         return self::$connection;
     }

@@ -17,7 +17,8 @@
             "Slendie\\Framework\\": "src/"
         },
         "files": [
-            "helpers/routing.php"
+            "helpers/routing.php",
+            "helpers/environment.php"
         ]        
     },
     "scripts": {

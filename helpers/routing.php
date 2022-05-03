@@ -20,9 +20,11 @@ function route( $name, $params = NULL )
     return Route::translate( $name, $params );
 }
 
-function redirect( $pattern, $params = NULL )
+function redirect( $route, $params = NULL )
 {
-    header('Location: ' . route($pattern, $params));
+    // $redirectTo = route($route, $params);
+    // dd(['redirect', $redirectTo]);
+    header('Location: ' . route($route, $params));
     exit();
 }
 

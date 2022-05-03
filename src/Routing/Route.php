@@ -36,9 +36,10 @@ class Route
         return self::getRouter()->delete( $pattern, $callback );
     }
 
-    public static function resolve( $pattern ) 
+    public static function resolve( $request ) 
     {
-        return self::getRouter()->resolve( $pattern );
+        // dd(['Routing::Route:resolve', $request]);
+        return self::getRouter()->resolve( $request );
     }
     public static function translate( $pattern, $params ) 
     {

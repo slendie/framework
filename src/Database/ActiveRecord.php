@@ -1,9 +1,9 @@
 <?php
 namespace Slendie\Framework\Database;
 
-use PDO;
+use \PDO;
 
-class AciveRecord 
+class ActiveRecord
 {
     private static $connection;
 
@@ -32,8 +32,8 @@ class AciveRecord
         if ( is_null( $this->table ) ) {
             $class = explode('\\', get_class($this));
             $this->table = strtolower( array_pop($class) );
-            $this->sql->setTable( $this->table );
         }
+        $this->sql->setTable( $this->table );
 
         if ( is_null( $this->id_column ) ) {
             $this->id_column = 'id';
@@ -322,6 +322,7 @@ class AciveRecord
     {
         $conn = Connection::getInstance();
         if ( $conn ) {
+            // dd(['Database::ActiveRecord', $sql]);
             return $conn->exec( $sql );
         } else {
             throw new \Exception('Error on connecting to database.');

@@ -10,13 +10,23 @@ class Request
     protected $protocol;
     protected $server;
     protected $data = [];
+    protected $port;
 
     public function __construct() {
-        $this->base = $_SERVER['REQUEST_URI'];
-        $this->uri = $_REQUEST['uri'] ?? '/';
+        // $this->base = $_SERVER['REQUEST_URI'];
+        // $this->uri = $_REQUEST['uri'] ?? '/';
+        $this->base = $_SERVER['SERVER_NAME'];
+        $this->uri = $_SERVER['REQUEST_URI'] ?? '/';
         $this->method = strtolower($_SERVER['REQUEST_METHOD']);
         $this->protocol = isset( $_SERVER['HTTPS'] ) ? 'https' : 'http';
-        $this->server = $_SERVER['SERVER_NAME'] . '/';
+        $this->port = $_SERVER['SERVER_PORT'];
+
+        if ( $this->port != 80 || !empty( $this->port ) ) {
+            $this->server = $_SERVER['SERVER_NAME'] . ':' . $this->port . '/';
+        } else {
+            $this->server = $_SERVER['SERVER_NAME'] . '/';
+        }
+
         $this->setData();
 
         if ( count( $_FILES ) > 0 ) {
@@ -76,6 +86,11 @@ class Request
         return $this->server;
     }
 
+    public function port()
+    {
+        return $this->port;
+    }
+    
     public function all() 
     {
         return $this->data;

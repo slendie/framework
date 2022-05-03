@@ -40,6 +40,8 @@ class Router
 
     public function dispatch( $route, $params, $namespace = "App\\Http\\Controllers\\" ) 
     {
+        // dd(['Routing::Router:dispatch', $route, $params, $namespace]);
+
         return $this->dispatcher->dispatch( $route->callback, $params, $namespace );
     }
 
@@ -50,6 +52,9 @@ class Router
 
     public function resolve( $request ) 
     {
+        $method = $request->method();
+        $uri = $request->uri();
+        // dd(['Routing::Router:resolve', $method, $uri]);
         $route = $this->find( $request->method(), $request->uri() );
 
         if ( $route ) {

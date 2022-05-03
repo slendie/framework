@@ -55,7 +55,7 @@ class SQL
     public function insert()
     {
         $newPairs = $this->convertPairs( $this->pairs );
-        $this->sql = "INSERT INTO {$this->table} (" . implode(', ', array_keys( $newPairs )) . ") VALUE (" . implode(', ', array_values( $newPairs )) . ");";
+        $this->sql = "INSERT INTO {$this->table} (" . implode(', ', array_keys( $newPairs )) . ") VALUES (" . implode(', ', array_values( $newPairs )) . ");";
         return $this;
     }
 
