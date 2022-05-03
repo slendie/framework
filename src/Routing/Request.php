@@ -13,13 +13,14 @@ class Request
     protected $port;
 
     public function __construct() {
+        // Prevent access from CLI or CGI.
+        if ( is_null( $_SERVER ) || !array_key_exists('SERVER_NAME', $_SERVER) ) {
+            return;
+        }
+
         // $this->base = $_SERVER['REQUEST_URI'];
         // $this->uri = $_REQUEST['uri'] ?? '/';
-        if ( array_key_exists('SERVER_NAME', $_SERVER) ) {
-            $this->base = $_SERVER['SERVER_NAME'];
-        } else {
-            $this->base = $_SERVER['REQUEST_URI'];
-        }
+        $this->base = $_SERVER['SERVER_NAME'];
         $this->uri = $_SERVER['REQUEST_URI'] ?? '/';
         $this->method = strtolower($_SERVER['REQUEST_METHOD']);
         $this->protocol = isset( $_SERVER['HTTPS'] ) ? 'https' : 'http';
