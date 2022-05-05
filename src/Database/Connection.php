@@ -80,8 +80,8 @@ class Connection
     public static function getInstance(): PDO
     {
         if ( is_null(self::$connection) ) {
-            // self::$data = \env('database');
-            self::$data = Environment::get('database');
+            $env = Environment::getInstance();
+            self::$data = $env::get('database');
             self::$connection = self::make( self::$data );
             self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
             // self::$connection->exec("set names utf8");

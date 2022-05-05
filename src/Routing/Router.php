@@ -3,7 +3,14 @@ namespace Slendie\Framework\Routing;
 
 class Router
 {
+    /**
+     * Collection of routes
+     */
     protected $route_collection;
+
+    /**
+     * Dispatcher handle route requests
+     */
     protected $dispatcher;
 
     public function __construct() 
@@ -12,27 +19,45 @@ class Router
         $this->dispatcher = new Dispatcher();
     }
     
+    /**
+     * Save a get route in its own collection.
+     */
     public function get( $pattern, $callback ) 
     {
         $this->route_collection->add('get', $pattern, $callback);
         return $this;
     }
+
+    /**
+     * Save a post route in its own collection.
+     */
     public function post( $pattern, $callback ) 
     {
         $this->route_collection->add('post', $pattern, $callback);
         return $this;
     }
+
+    /**
+     * Save a put route in its own collection.
+     */
     public function put( $pattern, $callback ) 
     {
         $this->route_collection->add('put', $pattern, $callback);
         return $this;
     }
+
+    /**
+     * Save delete route in its own collection.
+     */
     public function delete( $pattern, $callback ) 
     {
         $this->route_collection->add('delete', $pattern, $callback);
         return $this;
     }
 
+    /**
+     * Find a request and method in its own collection and return it.
+     */
     public function find( $request_method, $pattern ) 
     {
         return $this->route_collection->where( $request_method, $pattern );
@@ -40,11 +65,12 @@ class Router
 
     public function dispatch( $route, $params, $namespace = "App\\Http\\Controllers\\" ) 
     {
-        // dd(['Routing::Router:dispatch', $route, $params, $namespace]);
-
         return $this->dispatcher->dispatch( $route->callback, $params, $namespace );
     }
 
+    /**
+     * Return a not found page (HTTP 404)
+     */
     protected function notFound() 
     {
         return header("HTTP/1.0 404 Not Found", true, 404);
@@ -54,7 +80,6 @@ class Router
     {
         $method = $request->method();
         $uri = $request->uri();
-        // dd(['Routing::Router:resolve', $method, $uri]);
         $route = $this->find( $request->method(), $request->uri() );
 
         if ( $route ) {
