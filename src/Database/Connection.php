@@ -54,7 +54,7 @@ class Connection
 
                 case 'SQLITE':
                     $dsn = "sqlite:{$dbname}";
-                    // dd(['Database::Connection', $dsn]);
+                    // dd(['Connection::make', $dsn]);
                     return new PDO($dsn);
                     break;
 
