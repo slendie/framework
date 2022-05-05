@@ -10,7 +10,7 @@ class Environment
 
     private function __construct() {}
 
-    private static function checkInstance()
+    private static function checkInstance( $env_file = NULL )
     {
         if ( is_null(self::$instance) ) {
             self::$instance = new Environment();
@@ -26,7 +26,7 @@ class Environment
 
     public static function getInstance( $env_file = NULL )
     {
-        self::checkInstance();
+        self::checkInstance($env_file);
 
         return self::$instance;
     }
