@@ -63,9 +63,13 @@ class Router
         return $this->route_collection->where( $request_method, $pattern );
     }
 
-    public function dispatch( $route, $params, $namespace = "App\\Http\\Controllers\\" ) 
+    /**
+     * Este método trata de executar o callback para a rota encontrada.
+     * Vai utilizar-se do seu atributo dispatcher.
+     */
+    public function dispatch( $route, $request, $params, $namespace = "App\\Http\\Controllers\\" ) 
     {
-        return $this->dispatcher->dispatch( $route->callback, $params, $namespace );
+        return $this->dispatcher->dispatch( $route->callback, $request, $params, $namespace );
     }
 
     /**
@@ -76,6 +80,11 @@ class Router
         return header("HTTP/1.0 404 Not Found", true, 404);
     }
 
+    /**
+     * Este método é utilizado para resolver o request atual.
+     * Procura nas rotas guardadas na coleção, uma com mesmo método e uri. [$this->find()]
+     * Caso encontre, então executa o dispatch para executar o callback.
+     */
     public function resolve( $request ) 
     {
         $method = $request->method();
@@ -84,7 +93,7 @@ class Router
 
         if ( $route ) {
             $params = $route->callback['values'] ? $this->getValues( $request->uri(), $route->callback['values'] ) : [];
-            return $this->dispatch( $route, $params );
+            return $this->dispatch( $route, $request, $params );
         }
         return $this->notFound();
     }
@@ -95,8 +104,10 @@ class Router
 
         $pattern = array_filter(explode('/', $pattern));
 
+        dc('Router::getValues', $pattern);
+
         foreach( $pattern as $key => $value ) {
-            if ( in_array($key, $positions) ) {
+            if ( in_array($key - 1, $positions) ) {
                 $result[array_search($key, $positions)] = $value;
             }
         }
@@ -104,8 +115,14 @@ class Router
         return $result;
     }
 
+    /**
+     * Translate a named route + params to an URL
+     * Este método traduz uma rota (nome) em uma URL.
+     */
     public function translate( $name, $params ) 
     {
+        // As rotas retornadas através do isThereAnyHow são relativas.
+        // A seguir é necessário criar as rotas absolutas.
         $pattern = $this->route_collection->isThereAnyHow( $name );
 
         if ( $pattern ) {
@@ -114,7 +131,7 @@ class Router
             $server = $request->server();
             $uri = [];
 
-            foreach( array_filter(explode('/', $request->base())) as $key => $value ) {
+            foreach( array_filter(explode('/', $request->uri())) as $key => $value ) {
                 if ( $value == 'public' ) {
                     $uri[] = $value;
                     break;
@@ -122,6 +139,10 @@ class Router
                 $uri[] = $value;
             }
             $uri = implode('/', array_filter($uri)) . '/';
+
+            dc('Router::translate', $name, $uri);
+
+            // $response = $this->route_collection->convert( $pattern, $params );
 
             return $protocol . '://'. $server . $this->route_collection->convert( $pattern, $params );
         }

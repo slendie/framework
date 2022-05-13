@@ -21,12 +21,18 @@ class Request
         // $this->base = $_SERVER['REQUEST_URI'];
         // $this->uri = $_REQUEST['uri'] ?? '/';
         $this->base = $_SERVER['SERVER_NAME'];
-        $this->uri = $_SERVER['REQUEST_URI'] ?? '/';
+
+        // Remove GET parameters
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        if ( preg_match('/\?.*/', $uri, $matches) ) {
+            $uri = str_replace( $matches[0], '', $uri);
+        }
+        $this->uri = $uri;
         $this->method = strtolower($_SERVER['REQUEST_METHOD']);
         $this->protocol = isset( $_SERVER['HTTPS'] ) ? 'https' : 'http';
         $this->port = $_SERVER['SERVER_PORT'];
 
-        if ( $this->port != 80 || !empty( $this->port ) ) {
+        if ( $this->port != 80 && !empty( $this->port ) ) {
             $this->server = $this->base . ':' . $this->port . '/';
         } else {
             $this->server = $this->base . '/';
@@ -41,20 +47,24 @@ class Request
 
     protected function setData() 
     {
+        if ( !empty($_GET) ) {
+            $this->data = $_GET;
+        }
         switch ( $this->method ) {
             case 'post':
-                $this->data = $_POST;
+                $this->data = array_merge( $this->data, $_POST );
                 break;
 
             case 'get':
-                $this->data = $_GET;
                 break;
 
             case 'head':
             case 'put':
             case 'delete':
             case 'options':
-                parse_str( file_get_contents('php://input'), $this->data );
+                $data = [];
+                parse_str( file_get_contents('php://input'), $data );
+                $this->data = array_merge( $this->data, $data );
                 break;
         }
     }

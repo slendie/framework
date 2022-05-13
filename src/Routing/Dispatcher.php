@@ -1,16 +1,17 @@
 <?php
 namespace Slendie\Framework\Routing;
 
+/**
+ * Esta classe serve apenas para executar um callback.
+ * Ele recebe um callback, o request atual, opcionalmente os parâmetros para o callback e opcionalmente o namespace.
+ * Quando chama a função, passa apenas o request junto com os valores dos parâmetros passados.
+ */
 class Dispatcher
 {
-    public function dispatch( $callback, $params = [], $namespace = "App\\Http\\Controllers\\" ) 
+    public function dispatch( $callback, $request, $params = [], $namespace = "App\\Http\\Controllers\\" ) 
     {
-        // if ( $callback['callback'] != 'AppController@index' && !empty($callback['callback']) ) {
-        //     dd(['Routing::Dispatcher:dispatch', $callback, $params, $namespace]);
-        // }
-
         if ( is_callable( $callback['callback'] )) {
-            return call_user_func_array( $callback['callback'], array_values( $params ));
+            return call_user_func_array( $callback['callback'], array_values( array_merge(['request' => $request], $params) ));
 
         } elseif ( is_string( $callback['callback'] )) {
             if ( false !== !!strpos( $callback['callback'], '@') ) {
@@ -26,7 +27,7 @@ class Dispatcher
                 $rc = new \ReflectionClass($controller);
 
                 if ( $rc->isInstantiable() && $rc->hasMethod( $action )) {
-                    return call_user_func_array( array( new $controller, $action ), array_values( $params ) );
+                    return call_user_func_array( array( new $controller, $action ), array_values( array_merge(['request' => $request], $params) ) );
                 } else {
                     throw new \Exception('Erro no dispatcher: controller não pôde ser instanciado ou método não existe');
                 }
