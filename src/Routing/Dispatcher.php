@@ -1,37 +1,33 @@
 <?php
 namespace Slendie\Framework\Routing;
 
+/**
+ * Class responsible for dispatch
+ */
 class Dispatcher
 {
-    public function dispatch( $callback, $params = [], $namespace = "App\\Http\\Controllers\\" ) 
+    /**
+     * Dispatch a route
+     */
+    public static function dispatch( Route $route )
     {
-        // if ( $callback['callback'] != 'AppController@index' && !empty($callback['callback']) ) {
-        //     dd(['Routing::Dispatcher:dispatch', $callback, $params, $namespace]);
-        // }
+        try {
+            if (is_callable( $route->callback() )) {
+                return call_user_func_array( $route->callback(), array_values( $route->params() ));
+            } else {
+                $call = explode("@", $route->callback() );
 
-        if ( is_callable( $callback['callback'] )) {
-            return call_user_func_array( $callback['callback'], array_values( $params ));
-
-        } elseif ( is_string( $callback['callback'] )) {
-            if ( false !== !!strpos( $callback['callback'], '@') ) {
-
-                if ( !empty($callback['namespace']) ) {
-                    $namespace = $callback['namespace'];
-                }
-
-                $callback['callback'] = explode('@', $callback['callback']);
-                $controller = $namespace.$callback['callback'][0];
-                $action = $callback['callback'][1];
-
-                $rc = new \ReflectionClass($controller);
-
-                if ( $rc->isInstantiable() && $rc->hasMethod( $action )) {
-                    return call_user_func_array( array( new $controller, $action ), array_values( $params ) );
+                if (count($call) == 2) {
+                    $controller = $route->namespace() . $call[0];
+                    $controller = new $controller;
+                    $method     = $call[1];
+                    return call_user_func_array(array($controller, $method), array_values( $route->params() ));
                 } else {
-                    throw new \Exception('Erro no dispatcher: controller não pôde ser instanciado ou método não existe');
+                    throw new Exception("Declaração de rota incorreta");
                 }
             }
+        } catch (\Exception $e) {
+            echo $e->getMessage();
         }
-        throw new \Exception('Erro no dispatcher: método não implementado.');
     }
 }

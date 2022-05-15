@@ -53,8 +53,8 @@ class Connection
                     break;
 
                 case 'SQLITE':
+                    $dbname = Environment::get('base_dir') . $dbname;
                     $dsn = "sqlite:{$dbname}";
-                    // dd(['Connection::make', $dsn]);
                     return new PDO($dsn);
                     break;
 

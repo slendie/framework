@@ -1,287 +1,98 @@
 <?php
 namespace Slendie\Framework\Routing;
 
+/**
+ * Uma classe estática que guarda as rotas do sistema.
+ */
 class RouteCollection
 {
-    protected $routes_post = [];
-    protected $routes_get = [];
-    protected $routes_put = [];
-    protected $routes_delete = [];
-    protected $route_names = [];
+    private static $routes = array();
+    private static $names = array();
 
-    public function add($request_method, $pattern, $callback) 
+    private function __construct() {}
+
+    private function __close() {}
+
+    /**
+     * Add a route to the collection and return it.
+     */
+    public static function add( Route $route )
     {
-        switch( strtolower($request_method) ) {
-            case 'post':
-                return $this->addPost($pattern, $callback);
-                break;
+        if ( !in_array( $route->method(), ['get', 'post'] ) ) {
+            throw new Exception('Método ' . $route->method() . ' não implementado.');
+        }
 
-            case 'get':
-                return $this->addGet($pattern, $callback);
-                break;
+        self::$routes[ $route->pattern() ][ $route->method() ] = $route;
 
-            case 'put':
-                return $this->addPut($pattern, $callback);
-                break;
-
-            case 'delete':
-                return $this->addDelete($pattern, $callback);
-                break;
+        if ( !empty( $route->name() ) ) {
+            self::addName( $route->method(), $route->pattern(), $route->name() );
         }
     }
 
-    protected function addPost($pattern, $callback) 
+    /**
+     * Add route name and an index to pattern and method.
+     */
+    public static function addName( $method, $pattern, $name ) 
     {
-        if ( is_array($pattern) ) {
-            $settings = $this->parsePattern($pattern);
-            $pattern = $settings['set'];
+        self::$names[ $name ] = [ 'pattern' => $pattern, 'method' => $method ];
+    }
+
+    /**
+     * Retrieve route by index: $method and $pattern.
+     */
+    public static function getByIndex( $method, $pattern ) 
+    {
+        if ( array_key_exists( $pattern, self::$routes ) ) {
+            $route_pattern = self::$routes[ $pattern ];
+
+            if ( array_key_exists( $method, $route_pattern ) ) {
+                return $route_pattern[ $method ];
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Find a route in the collection and return it if found.
+     * Otherwise, return false.
+     */
+    public static function find( string $method, string $pattern )
+    {
+        foreach( self::$routes as $key => $route_pattern ) {
+            if ( preg_match( $key, $pattern, $matches) ) {
+                return self::getByIndex( $method, $key );
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Find (and retrieve) a route by name.
+     */
+    public static function findByName( string $name ) 
+    {
+        if ( array_key_exists( $name, self::$names ) ) {
+            $index = self::$names[ $name ];
+
+            return self::getByIndex( $index['method'], $index['pattern'] );
+        }
+        return false;
+    }
+
+    /**
+     * Set a name to a route.
+     */
+    public static function setName( string $method, string $pattern, string $name ) 
+    {
+        $route = self::$routes[ $pattern ][ $method ];
+
+        if ( $route ) {
+            $route->name( $name );
+            self::$routes[ $pattern ][ $method ] = $route;
+            self::addName( $method, $pattern, $name );
+            return true;
         } else {
-            $settings = [];
+            throw new \Exception('Rota {$pattern} com método {$method} não definida.');
         }
-        $values = $this->toMap( $pattern );
-        $route_arr = [
-            'callback'  => $callback, 
-            'values'    => $values, 
-            'namespace' => $settings['namespace'] ?? null
-        ];
-        $this->routes_post[$this->definePattern( $pattern )] = $route_arr;
-
-        if ( isset( $settings['as'] )) {
-            $this->route_names[$settings['as']] = $pattern;
-        }
-        return $this;
-    }
-    protected function addGet($pattern, $callback) 
-    {
-        if ( is_array($pattern) ) {
-            $settings = $this->parsePattern($pattern);
-            $pattern = $settings['set'];
-        } else {
-            $settings = [];
-        }
-        $values = $this->toMap( $pattern );
-        $route_arr = [
-            'callback'  => $callback, 
-            'values'    => $values, 
-            'namespace' => $settings['namespace'] ?? null
-        ];
-        $this->routes_get[$this->definePattern( $pattern )] = $route_arr;
-
-        if ( isset( $settings['as'] )) {
-            $this->route_names[$settings['as']] = $pattern;
-        }
-        return $this;
-    }
-    protected function addPut($pattern, $callback) 
-    {
-        if ( is_array($pattern) ) {
-            $settings = $this->parsePattern($pattern);
-            $pattern = $settings['set'];
-        } else {
-            $settings = [];
-        }
-        $values = $this->toMap( $pattern );
-        $route_arr = [
-            'callback'  => $callback, 
-            'values'    => $values, 
-            'namespace' => $settings['namespace'] ?? null
-        ];
-        $this->routes_put[$this->definePattern( $pattern )] = $route_arr;
-
-        if ( isset( $settings['as'] )) {
-            $this->route_names[$settings['as']] = $pattern;
-        }
-        return $this;
-    }
-    protected function addDelete($pattern, $callback) 
-    {
-        if ( is_array($pattern) ) {
-            $settings = $this->parsePattern($pattern);
-            $pattern = $settings['set'];
-        } else {
-            $settings = [];
-        }
-        $values = $this->toMap( $pattern );
-        $route_arr = [
-            'callback'  => $callback, 
-            'values'    => $values, 
-            'namespace' => $settings['namespace'] ?? null
-        ];
-        $this->routes_delete[$this->definePattern( $pattern )] = $route_arr;
-
-        if ( isset( $settings['as'] )) {
-            $this->route_names[$settings['as']] = $pattern;
-        }
-        return $this;
-    }
-
-    protected function definePattern( $pattern ) 
-    {
-        $pattern = implode('/', array_filter( explode('/', $pattern) ));
-        $pattern = '/^' . str_replace('/', '\/', $pattern) . '$/';
-
-        $word = '[A-Za-z0-9\_\-]{1,}';
-        if ( preg_match('/\{' . $word . '\}/', $pattern) ) {
-            $pattern = preg_replace( '/\{' . $word . '\}/', $word, $pattern );
-        }
-        return $pattern;
-    }
-
-    protected function parsePattern( array $pattern )
-    {
-        // Define the pattern
-        $result['set'] = $pattern['set'] ?? null;
-
-        // Allows route name settings
-        $result['as'] = $pattern['as'] ?? null;
-
-        // Allows new namespace definition for Controllers
-        $result['namespace'] = $pattern['namespace'] ?? null;
-
-        return $result;
-    }
-
-    public function where( $request_method, $pattern ) 
-    {
-        switch( $request_method ) {
-            case 'post':
-                return $this->findPost( $pattern );
-                break;
-
-            case 'get':
-                return $this->findGet( $pattern );
-                break;
-
-            case 'put':
-                return $this->findPut( $pattern );
-                break;
-
-            case 'delete':
-                return $this->findDelete( $pattern );
-                break;
-
-            default:
-                throw new \Exception('Tipo de requisição não suportada');
-        }
-    }
-
-    protected function parseUri( $uri ) 
-    {
-        return implode( '/', array_filter( explode('/', $uri)));
-    }
-
-    protected function findPost( $pattern_sent ) 
-    {
-        $pattern_sent = $this->parseUri( $pattern_sent );
-
-        foreach( $this->routes_post as $pattern => $callback ) {
-            if ( preg_match( $pattern, $pattern_sent, $pieces )) {
-                return (object) ['callback' => $callback, 'uri' => $pieces];
-            }
-        }
-        return false;
-    }
-    
-    protected function findGet( $pattern_sent ) 
-    {
-        $pattern_sent = $this->parseUri( $pattern_sent );
-
-        foreach( $this->routes_get as $pattern => $callback ) {
-            if ( preg_match( $pattern, $pattern_sent, $pieces )) {
-                return (object) ['callback' => $callback, 'uri' => $pieces];
-            }
-        }
-        return false;
-    }
-    protected function findPut( $pattern_sent ) 
-    {
-        $pattern_sent = $this->parseUri( $pattern_sent );
-
-        foreach( $this->routes_put as $pattern => $callback ) {
-            if ( preg_match( $pattern, $pattern_sent, $pieces )) {
-                return (object) ['callback' => $callback, 'uri' => $pieces];
-            }
-        }
-        return false;
-    }
-    protected function findDelete( $pattern_sent ) 
-    {
-        $pattern_sent = $this->parseUri( $pattern_sent );
-
-        foreach( $this->routes_delete as $pattern => $callback ) {
-            if ( preg_match( $pattern, $pattern_sent, $pieces )) {
-                return (object) ['callback' => $callback, 'uri' => $pieces];
-            }
-        }
-        return false;
-    }
-
-    protected function strposarray( String $haystack, array $needles, int $offset = 0 ) 
-    {
-        $result = false;
-        if (strlen($haystack) > 0 && count($needles) > 0) {
-            foreach( $needles as $element ) {
-                $result = strpos($haystack, $element, $offset);
-
-                if ( false !== $result ) {
-                    break;
-                }
-            }
-        }
-    }
-
-    protected function toMap( $pattern ) 
-    {
-        $result = [];
-        $needles = ['{', '[', '(', "\\"];
-        $pattern = array_filter(explode('/', $pattern));
-
-        foreach( $pattern as $key => $element ) {
-            $found = $this->strposarray( $element, $needles );
-
-            if ( false !== $found ) {
-                if ( substr( $element, 0, 1 ) == '{' ) {
-                    $result[preg_filter('/([\{\}])/', '', $element)] = $key - 1;
-                } else {
-                    $index = 'value_' . !empty($result) ? count( $result ) + 1 : 1;
-                    array_merge( $result, [$index => $key - 1] );
-                }
-            }
-        }
-        return count($result) > 0 ? $result : false;
-    }
-
-    public function isThereAnyHow( $name ) 
-    {
-        return $this->route_names[$name] ?? false;
-    }
-
-    public function convert( $pattern, $params ) 
-    {
-        if ( !is_array($params) ) {
-            $params = array($params);
-        }
-
-        $positions = $this->toMap( $pattern );
-        if ( false === $positions ) {
-            $positions = [];
-        }
-
-        $pattern = array_filter(explode('/', $pattern));
-
-        if ( count($positions) < count($pattern) ) {
-            $uri = [];
-
-            foreach( $pattern as $key => $element ) {
-                if ( in_array($key - 1, $positions) ) {
-                    $uri[] = array_shift( $params );
-                } else {
-                    $uri[] = $element;
-                }
-            }
-            return implode('/', array_filter($uri));
-        }
-
-        return false;
     }
 }

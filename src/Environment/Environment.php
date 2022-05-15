@@ -44,8 +44,8 @@ class Environment
 
     private static function _getPath( $filePath )
     {
-        $filePath = strReplace('/', DIRECTORY_SEPARATOR);
-        $filePath = strReplace('\\', DIRECTORY_SEPARATOR);
+        $filePath = str_replace('/', DIRECTORY_SEPARATOR, $filePath);
+        $filePath = str_replace('\\', DIRECTORY_SEPARATOR, $filePath);
         $parts = explode( DIRECTORY_SEPARATOR, $filePath );
         $path = "";
         for( $i = 0; $i < count($parts); $i++ ) {
