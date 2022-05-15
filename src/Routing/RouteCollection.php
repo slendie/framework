@@ -22,7 +22,7 @@ class RouteCollection
             throw new Exception('Método ' . $route->method() . ' não implementado.');
         }
 
-        self::$routes[ $route->pattern() ][ $route->method() ] = $route;
+        self::update( $route );
 
         if ( !empty( $route->name() ) ) {
             self::addName( $route->method(), $route->pattern(), $route->name() );
@@ -88,11 +88,22 @@ class RouteCollection
 
         if ( $route ) {
             $route->name( $name );
-            self::$routes[ $pattern ][ $method ] = $route;
+            self::update( $route );
             self::addName( $method, $pattern, $name );
             return true;
         } else {
             throw new \Exception('Rota {$pattern} com método {$method} não definida.');
         }
+    }
+
+    public static function update( Route $route )
+    {
+        // Check if route is already defined or not.
+        if ( !array_key_exists( $route->pattern() , self::$routes ) ) {
+            self::$routes[ $route->pattern() ] = [];
+        }
+
+        // Locate route in the collection
+        self::$routes[ $route->pattern() ][ $route->method() ] = $route;
     }
 }

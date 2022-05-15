@@ -53,3 +53,22 @@ if ( !function_exists('asset') ) {
         return Request::asset( $resource );
     }
 }
+
+if ( !function_exists('http') ) {
+    function http( $code ) {
+        switch( $code ) {
+            case '403':
+                Router::forbidden();
+                break;
+
+            case '404':
+                Router::notFound();
+                break;
+
+            default;
+                throw new \Exception('Código HTTP ' . $code . ' não definido.');
+                break;
+
+        }
+    }
+}

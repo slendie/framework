@@ -16,6 +16,7 @@ class Route
     protected $name = null;
     protected $params = [];
     protected $namespace = null;
+    protected $middlewares = [];
 
     /**
      * Define its method, pattern, callback and optionally a namespace.
@@ -118,6 +119,16 @@ class Route
     public function setParams( $params )
     {
         $this->params = $params;
+    }
+
+    public function middlewares()
+    {
+        return $this->middlewares;
+    }
+    
+    public function setMiddleware( $middleware )
+    {
+        $this->middlewares[] = $middleware;
     }
 
     /**

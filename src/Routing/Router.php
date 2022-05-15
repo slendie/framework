@@ -75,8 +75,24 @@ class Router
     {
         self::$route->setName( $name );
         RouteCollection::setName( self::$route->method(), self::$route->pattern(), self::$route->name() );
+
+        return self::getInstance();
     }
 
+
+    /**
+     * Register middlewares for this route.
+     */
+    public static function middleware( array $middlewares )
+    {
+        foreach ( $middlewares as $middleware ) {
+            self::$route->setMiddleware( $middleware );
+        }
+        RouteCollection::update( self::$route );
+
+        // Return this instance
+        return self::getInstance();
+    }
 
     /**
      * Resolve current request to a route callback.
@@ -97,9 +113,19 @@ class Router
     /**
      * Send a not found response (HTTP/404)
      */
-    protected static function notFound() 
+    public static function notFound() 
     {
-        return header("HTTP/1.0 404 Not Found", true, 404);
+        header("HTTP/1.0 404 Not Found", true, 404);
+        exit;
+    }
+
+    /**
+     * Send a not authorized response (HTTP/403)
+     */
+    public static function forbidden() 
+    {
+        header("HTTP/1.0 403 Forbidden", true, 403);
+        exit;
     }
 
     /**
