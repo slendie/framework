@@ -4,6 +4,7 @@ namespace Slendie\Framework\Routing;
 class Request
 {
     protected $files;
+    protected $domain;
     protected $base;
     protected $uri;
     protected $method;
@@ -11,16 +12,15 @@ class Request
     protected $server;
     protected $data = [];
     protected $port;
+    protected static $instance = null;
 
-    public function __construct() {
+    private function __construct() {
         // Prevent access from CLI or CGI.
         if ( is_null( $_SERVER ) || !array_key_exists('SERVER_NAME', $_SERVER) ) {
             return;
         }
 
-        // $this->base = $_SERVER['REQUEST_URI'];
-        // $this->uri = $_REQUEST['uri'] ?? '/';
-        $this->base = $_SERVER['SERVER_NAME'];
+        $this->domain = $_SERVER['SERVER_NAME'];
 
         // Remove GET parameters
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -33,16 +33,25 @@ class Request
         $this->port = $_SERVER['SERVER_PORT'];
 
         if ( $this->port != 80 && !empty( $this->port ) ) {
-            $this->server = $this->base . ':' . $this->port . '/';
+            $this->server = $this->domain . ':' . $this->port . '/';
         } else {
-            $this->server = $this->base . '/';
+            $this->server = $this->domain . '/';
         }
+        $this->base = $this->protocol . '://' . $this->server;
 
         $this->setData();
 
         if ( count( $_FILES ) > 0 ) {
             $this->setFiles();
         }
+    }
+
+    public static function getInstance()
+    {
+        if ( is_null( self::$instance ) ) {
+            self::$instance = new Request();
+        }
+        return self::$instance;
     }
 
     protected function setData() 
@@ -76,39 +85,56 @@ class Request
         }
     }
 
-    public function base() 
+    public static function base() 
     {
-        return $this->base;
+        $request = Request::getInstance();
+        return $request->base;
     }
 
-    public function uri() 
+    public static function uri() 
     {
-        return $this->uri;
+        $request = Request::getInstance();
+        return $request->uri;
     }
 
-    public function method() 
+    public static function method() 
     {
-        return $this->method;
+        $request = Request::getInstance();
+        return $request->method;
     }
 
-    public function protocol() 
+    public static function protocol() 
     {
-        return $this->protocol;
+        $request = Request::getInstance();
+        return $request->protocol;
     }
 
-    public function server()
+    public static function server()
     {
-        return $this->server;
+        $request = Request::getInstance();
+        return $request->server;
     }
 
     public function port()
     {
-        return $this->port;
+        $request = Request::getInstance();
+        return $request->port;
     }
     
-    public function all() 
+    public static function all() 
     {
-        return $this->data;
+        $request = Request::getInstance();
+        return $request->data;
+    }
+
+    public static function asset( $resource )
+    {
+        $request = Request::getInstance();
+
+        if ( substr( $resource, 0, 1 ) == '/' ) {
+            $resource = substr( $resource, 1, strlen( $resource ) - 1);
+        }
+        return $request->base . $resource;
     }
 
     public function __isset( $key ) 

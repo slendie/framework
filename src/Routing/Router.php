@@ -1,165 +1,122 @@
 <?php
 namespace Slendie\Framework\Routing;
 
+/**
+ * Router class: control all routes (sorry for the redundancy).
+ */
 class Router
 {
-    /**
-     * Collection of routes
-     */
-    protected $route_collection;
+    // This instance
+    protected static $instance = null;
 
-    /**
-     * Dispatcher handle route requests
-     */
-    protected $dispatcher;
+    // Latest route
+    protected static $route = null;
 
-    public function __construct() 
+    private function __construct() {}
+
+    // Singleton
+    public static function getInstance() 
     {
-        $this->route_collection = new RouteCollection();
-        $this->dispatcher = new Dispatcher();
-    }
-    
-    /**
-     * Save a get route in its own collection.
-     */
-    public function get( $pattern, $callback ) 
-    {
-        $this->route_collection->add('get', $pattern, $callback);
-        return $this;
+        if ( is_null( self::$instance ) ) {
+            self::$instance = new Router();
+        }
+        return self::$instance;
     }
 
     /**
-     * Save a post route in its own collection.
+     * Add a route to the route collection.
      */
-    public function post( $pattern, $callback ) 
+    public static function add( string $method, string $pattern, $callback )
     {
-        $this->route_collection->add('post', $pattern, $callback);
-        return $this;
+        self::$route = new Route( $method, $pattern, $callback );
+
+        RouteCollection::add( self::$route );
+
+        // Return this instance
+        return self::getInstance();
     }
 
     /**
-     * Save a put route in its own collection.
+     * Add a route with get method.
      */
-    public function put( $pattern, $callback ) 
+    public static function get( string $pattern, $callback )
     {
-        $this->route_collection->add('put', $pattern, $callback);
-        return $this;
+        return self::add( 'get', $pattern, $callback);
     }
 
     /**
-     * Save delete route in its own collection.
+     * Add a route with post method.
      */
-    public function delete( $pattern, $callback ) 
+    public static function post( string $pattern, $callback )
     {
-        $this->route_collection->add('delete', $pattern, $callback);
-        return $this;
+        return self::add( 'post', $pattern, $callback);
     }
 
     /**
-     * Find a request and method in its own collection and return it.
+     * Add a route with put method.
      */
-    public function find( $request_method, $pattern ) 
+    public static function put( string $pattern, $callback )
     {
-        return $this->route_collection->where( $request_method, $pattern );
+        return self::add( 'put', $pattern, $callback);
+    }
+
+    /** 
+     * Add a route with delete method.
+     */
+    public static function delete( string $pattern, $callback )
+    {
+        return self::add( 'delete', $pattern, $callback);
     }
 
     /**
-     * Este método trata de executar o callback para a rota encontrada.
-     * Vai utilizar-se do seu atributo dispatcher.
+     * Define a name to the current route (and update on the route collection).
      */
-    public function dispatch( $route, $request, $params, $namespace = "App\\Http\\Controllers\\" ) 
+    public static function name( string $name )
     {
-        return $this->dispatcher->dispatch( $route->callback, $request, $params, $namespace );
+        self::$route->setName( $name );
+        RouteCollection::setName( self::$route->method(), self::$route->pattern(), self::$route->name() );
+    }
+
+
+    /**
+     * Resolve current request to a route callback.
+     */
+    public static function resolve()
+    {
+        $request = Request::getInstance();
+
+        self::$route = RouteCollection::find( $request->method(), $request->uri() );
+
+        if ( self::$route ) {
+            return self::$route->dispatch();
+        } else {
+            return self::notFound();
+        }
     }
 
     /**
-     * Return a not found page (HTTP 404)
+     * Send a not found response (HTTP/404)
      */
-    protected function notFound() 
+    protected static function notFound() 
     {
         return header("HTTP/1.0 404 Not Found", true, 404);
     }
 
     /**
-     * Este método é utilizado para resolver o request atual.
-     * Procura nas rotas guardadas na coleção, uma com mesmo método e uri. [$this->find()]
-     * Caso encontre, então executa o dispatch para executar o callback.
+     * Translate a route name + params into a url.
      */
-    public function resolve( $request ) 
+    public static function translate( string $name, $params = [] )
     {
-        $method = $request->method();
-        $uri = $request->uri();
-        $route = $this->find( $request->method(), $request->uri() );
-
-        if ( $route ) {
-            $params = $route->callback['values'] ? $this->getValues( $request->uri(), $route->callback['values'] ) : [];
-            return $this->dispatch( $route, $request, $params );
+        if ( is_null( $params ) ) {
+            $params = [];
         }
-        return $this->notFound();
-    }
+        self::$route = RouteCollection::findByName( $name );
 
-    protected function getValues( $pattern, $positions ) 
-    {
-        $result = [];
-
-        $pattern = array_filter(explode('/', $pattern));
-
-        dc('Router::getValues', $pattern);
-
-        foreach( $pattern as $key => $value ) {
-            if ( in_array($key - 1, $positions) ) {
-                $result[array_search($key, $positions)] = $value;
-            }
+        if ( self::$route ) {
+            self::$route->setParams( $params );
+            return self::$route->translate();
         }
-
-        return $result;
-    }
-
-    /**
-     * Translate a named route + params to an URL
-     * Este método traduz uma rota (nome) em uma URL.
-     */
-    public function translate( $name, $params ) 
-    {
-        // As rotas retornadas através do isThereAnyHow são relativas.
-        // A seguir é necessário criar as rotas absolutas.
-        $pattern = $this->route_collection->isThereAnyHow( $name );
-
-        if ( $pattern ) {
-            $request = new Request();
-            $protocol = $request->protocol();
-            $server = $request->server();
-            $uri = [];
-
-            foreach( array_filter(explode('/', $request->uri())) as $key => $value ) {
-                if ( $value == 'public' ) {
-                    $uri[] = $value;
-                    break;
-                }
-                $uri[] = $value;
-            }
-            $uri = implode('/', array_filter($uri)) . '/';
-
-            dc('Router::translate', $name, $uri);
-
-            // $response = $this->route_collection->convert( $pattern, $params );
-
-            return $protocol . '://'. $server . $this->route_collection->convert( $pattern, $params );
-        }
+        
         return false;
-    }
-
-    public function base()
-    {
-        $request = new Request();
-        $protocol = $request->protocol();
-        $server = $request->server();
-
-        return $protocol . '://' . $server;
-    }
-
-    public function asset( $resource )
-    {
-        return $this->base() . $resource;
     }
 }
