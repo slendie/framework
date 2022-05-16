@@ -65,7 +65,7 @@ class SQL
             $this->wheres[$i]['right'] = $this->format($where['right']);
         }
 
-        $this->sql = "SELECT * FROM {$this->table} " . $this->getWhere();
+        $this->sql = "SELECT * FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere();
         if ( $this->orderBy != "" ) {
             $this->sql .= " ORDER BY " . $this->orderBy;
         }
@@ -73,6 +73,7 @@ class SQL
         $this->sql .= ( $this->offset > 0 ) ? " OFFSET {$this->offset}" : "";
         $this->sql .= ";";
         
+        // dc('Sql::select', $this->sql );
         return $this;
     }
 
@@ -99,7 +100,7 @@ class SQL
             $this->wheres[$i]['right'] = $this->format($where['right']);
         }
 
-        $this->sql = "DELETE FROM {$this->table} " . $this->getWhere() . ";";
+        $this->sql = "DELETE FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere() . ";";
         return $this;
     }
     
@@ -114,9 +115,14 @@ class SQL
 
     public function count( string $column_name = '*' )
     {
-        $this->sql = "SELECT COUNT( $column_name ) AS num_rows FROM {$this->table} " . $this->getWhere();
+        $this->sql = "SELECT COUNT( $column_name ) AS num_rows FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere();
 
         return $this;
+    }
+
+    private function sanitize( $column )
+    {
+        return "`" . $column . "`";
     }
 
     public function getWhere()
@@ -138,11 +144,11 @@ class SQL
                 $where_cond['oper'] = 'AND';
             }
             if ( $where_cond['comp'] == '=' && is_null($where_cond['right']) ) {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $where_cond['left'] . " IS NULL " . $where_cond['close']);
+                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " IS NULL " . $where_cond['close']);
             } elseif ( $where_cond['comp'] == '<>' && is_null($where_cond['right']) ) {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $where_cond['left'] . " IS NOT NULL " . $where_cond['close']);
+                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " IS NOT NULL " . $where_cond['close']);
             } else {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $where_cond['left'] . " " . $where_cond['comp'] . " " . $where_cond['right'] . " " . $where_cond['close']);
+                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " " . $where_cond['comp'] . " " . $where_cond['right'] . " " . $where_cond['close']);
             }
             $count++;
         }

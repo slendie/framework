@@ -58,6 +58,9 @@ class ActiveRecord
 
     public function __get( $param )
     {
+        if ( !array_key_exists( $param, $this->data ) ) {
+            throw new \Exception('Atributo ' . $param . ' inexistente na tabela ' . $this->table);
+        }
         return $this->data[$param];
     }
 
@@ -188,11 +191,6 @@ class ActiveRecord
         $sql->setTable( $table );
         $sql->setIdColumn( $id_column );
 
-        // if ( $this->soft_deletes && !$this->select_deleted ) {
-        //     $select_sql = $sql->where($id_column, $id)->where('deleted_at', NULL)->select()->get();
-        // } else {
-        //     $select_sql = $sql->where($id_column, $id)->select()->get();
-        // }
         $select_sql = $sql->where($id_column, $id)->where('deleted_at', NULL)->select()->get();
         
         return self::fetchObject( $select_sql );
@@ -221,7 +219,7 @@ class ActiveRecord
         return $this;
     }
 
-    public function get()
+    public function getSql()
     {
         if ( $this->soft_deletes === true ) {
             if ( $this->select_deleted === false ) {
@@ -229,8 +227,34 @@ class ActiveRecord
             }
         }
         
-        $select_sql = $this->sql->select()->get();
-        return self::fetchAll( $select_sql );
+        // dd('ActiveRecord::getSql 2', $this->sql->get());
+        
+        // $select_sql = $this->sql->select()->get();
+
+        // dd('ActiveRecord::getSql 1', $select_sql);
+        // dd('ActiveRecord::getSql 3', $this->sql->get());
+
+        // $query = self::fetchAll( $select_sql );
+        $query = self::fetchAll( $this->sql->get() );
+        return $query;
+    }
+
+    public function get()
+    {
+        // dd( 'ActiveRecord::get', $this->getSql() );
+        // dd( 'ActiveRecord::get', $this->sql->get() );
+        // return self::fetchObject( $this->getSql() );
+        return self::fetchObject( $this->sql->get() );
+    }
+
+    public function sql()
+    {
+        return $this->sql;
+    }
+
+    public function toSql()
+    {
+        return $this->sql()->get();
     }
 
     public static function customAll( string $select, string $filter = '', int $limit = 0, int $offset = 0 )
@@ -274,6 +298,7 @@ class ActiveRecord
         // } else {
         //     $select_sql = $sql->limit( $limit )->offset( $offset )->select()->get();
         // }
+
         $select_sql = $sql->where('deleted_at', NULL)->limit( $limit )->offset( $offset )->select()->get();
         
         return self::fetchAll( $select_sql );

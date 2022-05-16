@@ -11,12 +11,11 @@ class Dispatcher
      */
     public static function dispatch( Route $route )
     {
-        $last_index = -1;
         $middlewares = $route->middlewares();
+        $response = '';
 
         // Run middleware before
         foreach( $middlewares as $i => $middleware ) {
-            $last_index = $i;
             $callback = MiddlewareCollection::get( $middleware );
 
             if ( is_callable( $callback ) ) {
@@ -49,18 +48,19 @@ class Dispatcher
         }
 
         // Run middleware after
-        for( $i = $last_index; $i >= 0; $i-- ) {
-            $callback = MiddlewareCollection::get( $middlewares[ $i ] );
+        foreach( array_reverse( $middlewares ) as $middleware ) {
+            $callback = MiddlewareCollection::get( $middleware );
+
             if ( is_callable( $callback ) ) {
                 $continue = call_user_func( $callback );
             } else {
-                $continue = call_user_func( array( $callback, 'down' ) );
+                $continue = call_user_func( array( $callback, 'up' ) );
             }
             if ( !$continue ) {
                 exit;
             }
         }
 
-        return $response;
+        echo $response;
     }
 }

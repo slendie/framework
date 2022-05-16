@@ -1,8 +1,6 @@
 <?php
 namespace Slendie\Framework\View;
 
-use Slendie\Framework\Environment\Environment;
-
 class View
 {
     const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
@@ -19,24 +17,21 @@ class View
     public function __construct( $path = NULL, $ext = NULL ) 
     {
         $this->loader = new Loader();
+        $this->setBase( env('base_dir' ));
 
         // Path : may be in 'point' format: resources.views
         if ( !is_null( $path ) ) {
             $this->setPath( $path );
+        } else {
+            $this->setPath( env('view_path') );
         }
 
         // Extension
         if ( !is_null( $ext ) ) {
             $this->setExtension( $ext );
+        } else {
+            $this->setExtension( env('view_extension') );
         }
-    }
-
-    public function fromEnv( $env_file = NULL )
-    {
-        $env = Environment::getInstance( $env_file );
-        $this->setBase( $env->base_dir );
-        $this->setPath( $env->view['path'] );
-        $this->setExtension( $env->view['extension'] );
     }
 
     public function setBase( $folder )

@@ -25,12 +25,12 @@ class Connection
      */
     private static function make( array $data ): PDO
     {
-        $driver     = $data['driver'] ?? "mysql";
-        $server     = $data['server'] ?? "localhost";
-        $port       = $data['port'] ?? NULL;
-        $user       = $data['user'] ?? NULL;
-        $pass       = $data['password'] ?? NULL;
-        $dbname     = $data['dbname'] ?? NULL;
+        $driver     = $data['db_driver'] ?? "mysql";
+        $server     = $data['db_server'] ?? "localhost";
+        $port       = $data['db_port'] ?? NULL;
+        $user       = $data['db_user'] ?? NULL;
+        $pass       = $data['db_password'] ?? NULL;
+        $dbname     = $data['db_dbname'] ?? NULL;
 
         if ( !is_null($driver) ) {
             switch( strtoupper($driver) ) {
@@ -53,7 +53,7 @@ class Connection
                     break;
 
                 case 'SQLITE':
-                    $dbname = Environment::get('base_dir') . $dbname;
+                    $dbname = env('base_dir') . $dbname;
                     $dsn = "sqlite:{$dbname}";
                     return new PDO($dsn);
                     break;
@@ -80,8 +80,7 @@ class Connection
     public static function getInstance(): PDO
     {
         if ( is_null(self::$connection) ) {
-            $env = Environment::getInstance();
-            self::$data = $env::get('database');
+            self::$data = env('database');
             self::$connection = self::make( self::$data );
             self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
             // self::$connection->exec("set names utf8");

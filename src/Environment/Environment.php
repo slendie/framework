@@ -156,6 +156,9 @@ class Environment
             return self::$env[ $key ];
         } else {
             foreach( self::$env as $i => $group ) {
+                if ( !is_array( $group ) ) {
+                    throw new \Exception('Chave não encontrada no .env: ' . $key);
+                }
                 if ( array_key_exists( $key, $group )) {
                     return $group[$key];
                 }
