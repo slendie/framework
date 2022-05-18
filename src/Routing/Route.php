@@ -7,7 +7,7 @@ namespace Slendie\Framework\Routing;
 class Route
 {
     const NAMESPACE = "App\\Http\\Controllers\\";
-    const WORD = "[A-Za-z0-9]{1,}";
+    const WORD = "[A-Za-z0-9\-]{1,}";
 
     protected $method = null;
     protected $route = null;

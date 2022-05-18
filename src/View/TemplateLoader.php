@@ -381,6 +381,13 @@ class TemplateLoader
                             $echo = 'ucfirst( ' . $echo . ' ) ';
                             break;
 
+                        case 'html':
+                            $echo = 'nl2br( htmlentities( ' . $echo . ', ENT_NOQUOTES ) ) ';
+                            break;
+
+                        case 'blank':
+                            $echo = 'nl2br( str_replace(" ", "&nbsp;", ' . $echo . ' ) ) ';
+                            break;
                     }
                 }
             }

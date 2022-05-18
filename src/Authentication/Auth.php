@@ -1,6 +1,8 @@
 <?php
 namespace Slendie\Framework\Authentication;
 
+use Slendie\Framework\Session\Session;
+
 use App\Models\User;
 
 class Auth
@@ -44,7 +46,7 @@ class Auth
 
     public static function authenticate( $email, $password )
     {
-        $user = (new User())->where('email', $email)->get();
+        $user = (new User())->where('email', $email)->select()->get();
 
         if ( $user ) {
             if ( password_verify( $password, $user->password ) ) {
