@@ -7,7 +7,7 @@ use PDOStatement;
 class Database
 {
     private static $instance = NULL;
-    private static $collates = [
+    const COLLATES  = [
         'big5_chinese_ci' => 'big5',
         'big5_bin' => 'big5',
         'dec8_swedish_ci' => 'dec8',
@@ -300,12 +300,12 @@ class Database
 
     public static function getCollates()
     {
-        return self::$collates;
+        return self::COLLATES;
     }
 
     public static function getCollateGroup( $collate )
     {
-        return self::$collates[$collate];
+        return self::COLLATES[$collate];
     }
 
     public static function dropDatabase( $database )
