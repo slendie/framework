@@ -6,7 +6,7 @@ use Slendie\Tools\Str;
 
 use \PDO;
 
-class ActiveRecord
+class Model
 {
     protected static $db = null;
 
