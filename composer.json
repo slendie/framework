@@ -19,7 +19,8 @@
         "files": [
             "helpers/view.php",
             "helpers/routing.php",
-            "helpers/environment.php"
+            "helpers/environment.php",
+            "helpers/session"
         ]        
     },
     "scripts": {

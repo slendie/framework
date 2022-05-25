@@ -1,242 +1,327 @@
 <?php
 namespace Slendie\Framework\Database;
 
-class SQL 
+class Sql
 {
-    protected $table = "";
-    protected $id_column = NULL;
-    protected $pairs = [];
-    protected $wheres = [];
-    protected $whereRaw = "";
-    protected $orderBy = "";
-    protected $sql = "";
-    protected $limit = 0;
-    protected $offset = 0;
+    protected $mode = '';
+    protected $table = '';
+    protected $id = '';
+    protected $tables = [];
+    protected $sql = '';
+    protected $where = '';
+    protected $order = '';
+    protected $group = '';
+    protected $having = '';
+    protected $offset = '';
+    protected $limit = '';
+    protected $data = [];
 
-    public function __construct()
-    {
-    }
-
-    public function setTable( $table )
+    public function __construct( $table ) 
     {
         $this->table = $table;
+        $this->id = 'id';
     }
 
-    public function setIdColumn( $id_column )
+    /**
+     * Reset all data.
+     */
+    public function reset()
     {
-        $this->id_column = $id_column;
+        $this->mode = '';
+        $this->sql = '';
+        $this->where = '';
+        $this->order = '';
+        $this->group = '';
+        $this->having = '';
+        $this->offset = '';
+        $this->limit = '';
+        $this->data = [];
     }
 
-    public function setPairs( $pairs )
+    /**
+     * Build a SELECT statement
+     */
+    public function select($args = null)
     {
-        $this->pairs = $pairs;
-    }
+        $this->reset();
+        $this->mode = "SELECT";
 
-    public function get()
-    {
-        return $this->sql;
-    }
-    
-    public function update()
-    {
-        $sets = [];
-        $newPairs = $this->convertPairs( $this->pairs );
-        foreach( $newPairs as $key => $value ) {
-            if ( $key !== $this->id_column ) {
-                $sets[] = "{$key} = {$value}";
+        $columns = '';
+        if ( is_null($args) ) {
+            $columns = '*';
+        } else {
+            if ( is_array($args) ) {
+                $columns = implode(', ', array_map( 'self::encapsulate', $args ) );
             } else {
-                $this->where( $key, $value );
+                $columns = $args;
             }
         }
-        $this->sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " " . $this->getWhere() . ";";
+
+        $this->sql = "SELECT {$columns} FROM " . self::encapsulate( $this->table ) . " ";
         return $this;
     }
 
+    /**
+     * Add a JOIN statement
+     */
+    public function join( $other_table, $array_on )
+    {
+        if ( $this->mode != "SELECT" ) {
+            throw new \Exception("Necessário selcionar select() antes do join().");
+            return false;
+        }
+
+        $this->sql .= " INNER JOIN " . self::encapsulate( $other_table ) . " ON ";
+        
+        $first = true;
+        foreach( $array_on as $key1 => $key2 ) {
+            if ( !$first ) {
+                $this->sql .= "AND ";
+            }
+            $first = false;
+            $this->sql .= self::encapsulate( $key1 ) . " = " . self::encapsulate( $key2 ) . " ";
+        }
+        return $this;
+    }
+
+    /**
+     * Build the WHERE condition
+     */
+    public function where( $column, $value, $op = "=", $join = "AND" )
+    {
+        if ( empty( $this->where ) ) {
+            $this->where .= "WHERE ";
+        } else {
+            $this->where .= "{$join} ";
+        }
+
+        $this->where .= self::encapsulate( $column ) . " ";
+        if ( !is_null( $value ) ) {
+            $this->where .= $op;
+            $this->where .= " " . self::sanitize( $value );
+        } else {
+            if ( $op == '!=' || $op == 'IS NOT' ) {
+                $this->where .= "IS NOT NULL";
+            } else {
+                $this->where .= "IS NULL";
+            }
+        }
+        $this->where .= " ";
+
+        return $this;
+    }
+
+    /**
+     * Build the ORDER BY clause
+     */
+    public function order( $column, $order = 'ASC' ) 
+    {
+        if ( empty( $this->order ) ) {
+            $this->order .= "ORDER BY ";
+        } else {
+            $this->order .= ", ";
+        }
+        $this->order .= self::encapsulate( $column ) . " {$order} ";
+
+        return $this;
+    }
+
+    /**
+     * Build the GROUP BY clause
+     */
+    public function group( $column )
+    {
+        if ( empty( $this->group ) ) {
+            $this->group .= "GROUP BY ";
+        } else {
+            $this->group .= ", ";
+        }
+        $this->group .= self::encapsulate( $column ) . " ";
+
+        return $this;
+    }
+
+    /**
+     * Build the HAVING clause
+     */
+    public function having( $cond )
+    {
+        if ( empty( $this->having ) ) {
+            $this->having .= "HAVING ";
+        } else {
+            $this->having .= "AND ";
+        }
+        $this->having .= "{$cond} ";
+
+        return $this;
+    }
+
+    /**
+     * Build the OFFSET clause
+     */
+    public function offset( $offset )
+    {
+        if ( empty( $this->offset ) ) {
+            $this->offset .= "OFFSET {$offset} ";
+        } else {
+            throw new \Exception('Não pode definir mais do que 1 offset.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Build the LIMIT clause
+     */
+    public function limit( $limit )
+    {
+        if ( empty( $this->limit ) ) {
+            $this->limit .= "LIMIT {$limit} ";
+        } else {
+            throw new \Exception('Não pode definir mais do que 1 limit.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set data. It is used on build SQL statements.
+     */
+    public function setData( $array )
+    {
+        $this->data = $array;
+    }
+
+    /**
+     * Set the ID column
+     */
+    public function setId( $id ) 
+    {
+        $this->id = $id;
+    }
+
+    /**
+     * Build a INSERT statement. This build will be generate a prepare SQL statement.
+     */
     public function insert()
     {
-        $newPairs = $this->convertPairs( $this->pairs );
-        $this->sql = "INSERT INTO {$this->table} (" . implode(', ', array_keys( $newPairs )) . ") VALUES (" . implode(', ', array_values( $newPairs )) . ");";
+        $this->mode = "INSERT";
+
+        $this->sql = "INSERT INTO " . self::encapsulate( $this->table ) . " (" . 
+                implode(', ', array_map( 'self::encapsulate', array_keys( $this->data ) ) ) . 
+                ") VALUES (" . 
+                implode(', ', array_map( function ($v) { return ':' . $v; }, array_keys( $this->data ) ) ) . ") ";
         return $this;
     }
 
-    public function select()
+    /**
+     * Build a UPDATE statement. This build will be generate a prepare SQL statement.
+     */
+    public function update()
     {
-        foreach( $this->wheres as $i => $where ) {
-            $this->wheres[$i]['right'] = $this->format($where['right']);
-        }
+        $this->mode = "UPDATE";
 
-        $this->sql = "SELECT * FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere();
-        if ( $this->orderBy != "" ) {
-            $this->sql .= " ORDER BY " . $this->orderBy;
+        $this->sql = "UPDATE " . self::encapsulate( $this->table ) . " SET ";
+        $sets = [];
+        foreach( $this->data as $column => $value ) {
+            if ( $column != $this->id ) {
+                // $sets[] = self::encapsulate( $column ) . " = " . self::sanitize( $value );
+                $sets[] = self::encapsulate( $column ) . " = :" . $column;
+            }
         }
-        $this->sql .= ( $this->limit > 0 ) ? " LIMIT {$this->limit}" : "";
-        $this->sql .= ( $this->offset > 0 ) ? " OFFSET {$this->offset}" : "";
-        $this->sql .= ";";
-        
-        // dc('Sql::select', $this->sql );
-        return $this;
-    }
-
-    public function customSelect( string $select )
-    {
-        foreach( $this->wheres as $i => $where ) {
-            $this->wheres[$i]['right'] = $this->format($where['right']);
-        }
-
-        $this->sql = "SELECT " . $select . " FROM {$this->table} " . $this->getWhere();
-        if ( $this->orderBy != "" ) {
-            $this->sql .= " ORDER BY " . $this->orderBy;
-        }
-        $this->sql .= ( $this->limit > 0 ) ? " LIMIT {$this->limit}" : "";
-        $this->sql .= ( $this->offset > 0 ) ? " OFFSET {$this->offset}" : "";
-        $this->sql .= ";";
-        
-        return $this;
-    }
-
-    public function delete()
-    {
-        foreach( $this->wheres as $i => $where ) {
-            $this->wheres[$i]['right'] = $this->format($where['right']);
-        }
-
-        $this->sql = "DELETE FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere() . ";";
+        $this->sql .= implode(', ', $sets) . " ";
+        // echo "Sql::update->sql: {$this->sql}" . PHP_EOL;
         return $this;
     }
     
+    /**
+     * Build a DELETE statement.
+     */
+    public function delete()
+    {
+        $this->reset();
+        $this->mode = "DELETE";
+
+        $this->sql = "DELETE FROM " . self::encapsulate( $this->table ) . " ";
+        return $this;
+    }
+
+    /**
+     * Build a TRUNCATE statement.
+     */
+    public function truncate()
+    {
+        return "TRUNCATE TABLE " . self::encapsulate( $this->table ) . "; ";
+    }
+    
+    /**
+     * Check if there is an ID.
+     * If so, then build an UPDATE statement.
+     * If not, then build an INSERT statement.
+     */
     public function save()
     {
-        if ( array_key_exists( $this->id_column, $this->pairs )) {
+        if ( array_key_exists( $this->id, $this->data ) ) {
             return $this->update()->get();
         } else {
             return $this->insert()->get();
         }
     }
 
-    public function count( string $column_name = '*' )
+    /**
+     * Get mode property
+     */
+    public function getMode()
     {
-        $this->sql = "SELECT COUNT( $column_name ) AS num_rows FROM " . $this->sanitize( $this->table ) . " " . $this->getWhere();
-
-        return $this;
+        return $this->mode;
     }
 
-    private function sanitize( $column )
+    /**
+     * Get is like a 'run' to build SQL statement.
+     */
+    public function get()
     {
-        return "`" . $column . "`";
-    }
-
-    public function getWhere()
-    {
-        $where = "";
-        if ( !empty($this->whereRaw) )
-        {
-            $where .= " " . $this->whereRaw;
+        $sql = $this->sql;
+        if ( !empty( $this->where ) ) {
+            $sql .= $this->where;
         }
-
-        if ( count( $this->wheres ) == 1 ) {
-            $this->wheres[0]['open'] = "";
-            $this->wheres[0]['close'] = "";
+        if ( !empty( $this->order ) ) {
+            $sql .= $this->order;
         }
-
-        $count = 0;
-        foreach( $this->wheres as $where_cond ) {
-            if ( $count > 0 && empty($where_cond['oper']) ) {
-                $where_cond['oper'] = 'AND';
-            }
-            if ( $where_cond['comp'] == '=' && is_null($where_cond['right']) ) {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " IS NULL " . $where_cond['close']);
-            } elseif ( $where_cond['comp'] == '<>' && is_null($where_cond['right']) ) {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " IS NOT NULL " . $where_cond['close']);
-            } else {
-                $where .= " " . trim($where_cond['oper'] . " " . $where_cond['open'] . $this->sanitize( $where_cond['left'] ) . " " . $where_cond['comp'] . " " . $where_cond['right'] . " " . $where_cond['close']);
-            }
-            $count++;
+        if ( !empty( $this->group ) ) {
+            $sql .= $this->group;
         }
-        if ( !empty($where) ) {
-            $where = "WHERE " . trim($where);
+        if ( !empty( $this->offset ) ) {
+            $sql .= $this->offset;
         }
-
-        return $where;
-    }
-
-    public function where($left, $right, $oper = "AND", $comp = "=", $open = "(", $close = ")")
-    {
-        $where = [];
-        $where['open'] = $open;
-        $where['close'] = $close;
-        if ( count($this->wheres) > 0  || !empty($this->whereRaw) ) {
-            $where['oper'] = $oper;
-        } else {
-            $where['oper'] = "";
+        if ( !empty( $this->limit ) ) {
+            $sql .= $this->limit;
         }
-        $where['left'] = $left;
-        $where['comp'] = $comp;
-        // $where['right'] = $this->encapsulate($right);
-        $where['right'] = $right;
-        $this->wheres[] = $where;
-        return $this;
+        $sql .= ";";
+        return $sql;
     }
 
-    public function whereRaw( $where_clause )
+    /**
+     * Encapsulate item names, like table name and columns.
+     */
+    public static function encapsulate( $item )
     {
-        $this->whereRaw = $where_clause;
+        return "`{$item}`";
     }
 
-    public function whereAnd($left, $right)
-    {
-        $this->where($left, $right, "AND", "=");
-        return $this;
-    }
-
-    public function whereOr($left, $right)
-    {
-        $this->where($left, $right, "OR", "=");
-        return $this;
-    }
-
-    public function whereLike($left, $right, $oper = "AND")
-    {
-        $this->where($left, $right, $oper, "LIKE");
-        return $this;
-    }
-
-    public function whereNot($left, $right)
-    {
-        $this->where($left, $right, "AND", "<>");
-        return $this;
-    }
-
-    public function orderBy( $column, $direction = 'ASC' )
-    {
-        if ( $this->orderBy != "" ) {
-            $this->orderBy .= ", ";
-        }
-        $this->orderBy .= $column . " " . $direction;
-        return $this;
-    }
-
-    public function limit( $limit )
-    {
-        $this->limit = $limit;
-        return $this;
-    }
-
-    public function offset( $offset )
-    {
-        $this->offset = $offset;
-        return $this;
-    }
-
-    private function format( $value )
+    /**
+     * Sanitize data.
+     */
+    public static function sanitize( $value )
     {
         if ( is_string($value) && !empty($value) ) {
             return "'" . addslashes($value) . "'";
-            // return addslashes($value);
 
         } else if (is_bool($value)) {
-            return $value ? 'TRUE' : 'FALSE';
+            // return $value ? 'TRUE' : 'FALSE';
+            return $value ? 1 : 0;
 
-        } else if ($value !== '') {
+        } else if ( !empty( $value ) && !is_null( $value ) ) {
             return $value;
 
         } else {
@@ -245,36 +330,4 @@ class SQL
         }
     }
 
-    private function encapsulate( $value )
-    {
-        if ( is_numeric($value) ) {
-            return $value;
-
-        } elseif ( is_string($value) ) {
-            return "'" . addslashes($value) . "'";
-
-        // if (is_string($value) && !empty($value)) {
-        //     return "'" . $value . "'";
-
-        // } elseif (is_string($value) && empty($value)) {
-        //     return "NULL";
-    
-        } else  {
-            return $value;
-
-        }
-    }
-
-    private function convertPairs( $sets )
-    {
-        $newPairs = [];
-        foreach ( $sets as $key => $value ) {
-            if ( is_scalar($value) ) {
-                $newPairs[$key] = $this->format($value);
-            // } else {
-            //     $newPairs[$key] = $value;
-            }
-        }
-        return $newPairs;
-    }
 }
