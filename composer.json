@@ -17,10 +17,10 @@
             "Slendie\\Framework\\": "src/"
         },
         "files": [
-            "helpers/view.php",
-            "helpers/routing.php",
-            "helpers/environment.php",
-            "helpers/session"
+            "src/helpers/view.php",
+            "src/helpers/routing.php",
+            "src/helpers/environment.php",
+            "src/helpers/session"
         ]        
     },
     "scripts": {
