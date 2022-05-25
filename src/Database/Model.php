@@ -313,6 +313,7 @@ class Model
      */
     public function select( $columns = '*' )
     {
+        if ( is_null( $this->sql ) ) die('No SQL.');
         $this->sql->select( $columns );
         return $this;
     }
