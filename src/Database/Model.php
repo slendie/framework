@@ -458,13 +458,13 @@ class Model
      */
     public function order( $column, $direction = 'ASC')
     {
-        $this->sql = $this->sql->order( $column, $direction );
+        $this->sql->order( $column, $direction );
         return $this;
     }
 
     public function first()
     {
-        $this->sql = $this->sql->limit(1);
+        $this->sql->limit(1);
         return $this->get();
     }
 }
