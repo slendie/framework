@@ -19,13 +19,14 @@
         "files": [
             "helpers/view.php",
             "helpers/routing.php",
-            "helpers/environment.php"
+            "helpers/environment.php",
+            "helpers/session"
         ]        
     },
     "scripts": {
         "test": "phpunit"
     },    
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "require": {
     },
     "require-dev": {
