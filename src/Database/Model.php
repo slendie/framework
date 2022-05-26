@@ -51,8 +51,10 @@ class Model
 
         $statement = self::query( $sqlText );
         $columns_count = $statement->columnCount();
+        $columns = [];
 
         for ( $i = 0; $i < $columns_count; $i++ ) {
+            $columns[ $statement->getColumnMeta($i)['name'] ] = '';
             $this->meta[ $statement->getColumnMeta($i)['name'] ] = [
                 'type'          => $statement->getColumnMeta($i)['pdo_type'],
                 'native_type'   => $statement->getColumnMeta($i)['native_type'],
@@ -60,6 +62,10 @@ class Model
                 'len'           => $statement->getColumnMeta($i)['len'],
                 'precision'     => $statement->getColumnMeta($i)['precision'],
             ];
+        }
+
+        if ( count( $this->data ) == 0 ) {
+            $this->setData( $columns );
         }
 
         /* Configure model */
@@ -166,6 +172,11 @@ class Model
     public function getMeta()
     {
         return $this->meta;
+    }
+
+    public function getSql()
+    {
+        return $this->sql->get();
     }
 
     /**
@@ -331,7 +342,15 @@ class Model
         $select = $this->sql->get();
 
         $statement = self::query( $select );
-        return self::fetch( $statement );
+        $row = self::fetch( $statement );
+
+        // if ( $row ) {
+        //     $this->setData( $row->toArray() );
+        // } else {
+        //     var_dump( $row );
+        // }
+
+        return $row;
     }
 
     public static function lastInsertId()
@@ -351,11 +370,12 @@ class Model
             $this->data[ 'updated_at' ] = date('Y-m-d H:i:s');
         }
         if ( isset( $this->{$this->_id} ) ) {
-            return $this->update();
-        } else {
-            if ( true == $this->log_timestamp ) {
-                $this->data[ 'created_at' ] = date('Y-m-d H:i:s');
+            if ( empty( $this->{$this->_id} ) ) {
+                return $this->update();
+            } else {
+                return $this->insert();
             }
+        } else {
             return $this->insert();
         }
     }
@@ -374,6 +394,9 @@ class Model
     public function insert()
     {
         $this->sql->setData( $this->data );
+        if ( true == $this->log_timestamp ) {
+            $this->data[ 'created_at' ] = date('Y-m-d H:i:s');
+        }
         $prepare = $this->sql->insert()->get();
 
         $values = $this->data;
