@@ -9,7 +9,7 @@ class TemplateLoader
     const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
     const NAME_PATTERN = '[A-Za-z0-9\.\-\_]{1,}';
     const WORD_PATTERN = '[^\']{1,}';
-    const ANYWORD_PATTERN = '[\w\.\_\-\>\)\(\[\]\b\s\\\'\=\$]';
+    const ANYWORD_PATTERN = '[,\w\.\_\-\>\)\(\[\]\b\s\\\'\=\$]';
 
     protected $extended = '';
     protected $template = '';

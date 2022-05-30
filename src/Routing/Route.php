@@ -173,9 +173,11 @@ class Route
 
         $params = [];
         foreach( $key_matches[1] as $i => $key_name ) {
-            $params[ $key_name ] = $matches[1][ $i ];
+            $params[ $key_name ] = $matches[ $i + 1 ][ 0 ];
         }
- 
+
+        // dd($uri, $this->pattern, $matches, $key_matches, $params);
+
         $this->setParams( $params );
     }
 }
