@@ -328,6 +328,21 @@ class Model
         return self::$_dbh->prepare( $sql );
     }
 
+    public static function count()
+    {
+        $class = get_called_class();
+        $model = new $class;
+        $sql = new Sql( $model->getTable() );
+        $select = $sql->select('COUNT(*) as n_rows')->get();
+
+        $row = $model->fetch( $select );
+
+        if ( $row ) {
+            return $row->n_rows;
+        }
+        return false;
+    }
+
     public function insert( $data )
     {
         if ( $this->log_timestamp ) {
@@ -339,11 +354,15 @@ class Model
         $sql->setPrepareMode();
         $insert = $sql->insert( $data )->get();
        
-        echo $insert . PHP_EOL;
-        var_dump( $sql->values() );
-
         $dbh = self::prepare( $insert );
-        return $dbh->execute( $sql->values() );
+        try {
+            $res = $dbh->execute( $sql->values() );
+        } catch( \PDOException $e ) {
+            dc( $insert );
+            dc( $sql->values() );
+            dc( $e );
+            exit;
+        }
     }
 
     public function update( $data )
@@ -388,5 +407,10 @@ class Model
         } else {
             return $this->insert( $data );
         }
+    }
+
+    public function lastInsertId()
+    {
+        return self::$_dbh->lastInsertId();
     }
 }
