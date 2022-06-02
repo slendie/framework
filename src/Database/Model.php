@@ -355,14 +355,7 @@ class Model
         $insert = $sql->insert( $data )->get();
        
         $dbh = self::prepare( $insert );
-        try {
-            $res = $dbh->execute( $sql->values() );
-        } catch( \PDOException $e ) {
-            dc( $insert );
-            dc( $sql->values() );
-            dc( $e );
-            exit;
-        }
+        $res = $dbh->execute( $sql->values() );
     }
 
     public function update( $data )
