@@ -129,6 +129,18 @@ class Model
     /* *** Auxiliary methods *** */
 
     /**
+     * Get a copy of current record
+     */
+    private function copy()
+    {
+        $class = get_called_class();
+        $model = new $class;
+        $model = $class::find( $this->{$this->_id} );
+
+        return $model;
+    }
+
+    /**
      * Get table name from class name.
      */
     private static function tableName()
@@ -146,8 +158,13 @@ class Model
         $sql = new Sql( $this->getTable() );
         $select = $sql->select()->limit(1)->get();
 
-        $statement = self::$_dbh->query( $select );
-        $columns_count = $statement->columnCount();
+        try {
+            $statement = self::$_dbh->query( $select );
+            $columns_count = $statement->columnCount();
+        } catch (\Exception $e) {
+            debug_print_backtrace();
+            dd( $select );
+        }
         $columns = [];
 
         for ( $i = 0; $i < $columns_count; $i++ ) {
@@ -194,6 +211,11 @@ class Model
         return $this->_id;
     }
 
+    public function id()
+    {
+        return $this->{$this->_id};
+    }
+
     /**
      * Setting and Getting Data
      */
@@ -222,24 +244,42 @@ class Model
      */
     public static function fetchAll( $sql )
     {
-        return self::$_dbh->fetchAll( $sql, get_called_class() );
+        try {
+            return self::$_dbh->fetchAll( $sql, get_called_class() );
+        } catch (\Exception $e) {
+            debug_print_backtrace();
+            dd( $sql );
+        }
     }
 
     public static function fetch( $sql )
     {
-        return self::$_dbh->fetch( $sql, get_called_class() );
+        try {
+            return self::$_dbh->fetch( $sql, get_called_class() );
+        } catch (\Exception $e) {
+            debug_print_backtrace();
+            dd( $sql );
+        }
     }
 
     public static function fetchAssoc( $sql )
     {
-        return self::$_dbh->fetch( $sql );
+        try {
+            return self::$_dbh->fetch( $sql );
+        } catch (\Exception $e) {
+            debug_print_backtrace();
+            dd( $sql );
+        }
     }
 
     public static function all( $columns = '*' )
     {
         self::connect();
 
-        $sql = new Sql( self::tableName() );
+        $class = get_called_class();
+        $model = new $class;
+
+        $sql = new Sql( $model->getTable() );
         $select = $sql->select( $columns )->get();
 
         return self::fetchAll( $select );
@@ -249,7 +289,10 @@ class Model
     {
         self::connect();
 
-        $sql = new Sql( self::tableName() );
+        $class = get_called_class();
+        $model = new $class;
+
+        $sql = new Sql( $model->getTable() );
         $select = $sql->select()->where( $key, $id )->get();
 
         return self::fetch( $select );
@@ -260,12 +303,14 @@ class Model
      */
     public function hasOne( $model, $related_column = '' )
     {
+        $current = $this->copy();
+        
         if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $this->getTable() );
+            $related_column = self::columnRelated( $current->getTable() );
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $this->{$this->_id} )->get();
+        $select = $sql->select()->where( $related_column, $current->id() )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -277,12 +322,14 @@ class Model
      */
     public function belongsToOne( $model, $related_column = '' )
     {
+        $current = $this->copy();
+        
         if ( empty( $related_column ) ) {
             $related_column = self::columnRelated( $model->getTable() );
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $this->{$related_column} )->get();
+        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -294,12 +341,14 @@ class Model
      */
     public function hasMany( $model, $related_column = '' )
     {
+        $current = $this->copy();
+        
         if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $this->getTable() );
+            $related_column = self::columnRelated( $current->getTable() );
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $this->{$this->_id} )->get();
+        $select = $sql->select()->where( $related_column, $current->id() )->get();
 
         // return self::fetchAll( $select );
         $class = get_class( $model );
@@ -311,12 +360,14 @@ class Model
      */
     public function belongsToMany( $model, $related_column )
     {
+        $current = $this->copy();
+        
         if ( empty( $related_column ) ) {
             $related_column = self::columnRelated( $model->getTable() );
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $this->{$related_column} )->get();
+        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
 
         // return self::fetchAll( $select );
         $class = get_class( $model );
@@ -325,7 +376,12 @@ class Model
 
     public static function prepare( $sql )
     {
-        return self::$_dbh->prepare( $sql );
+        try {
+            return self::$_dbh->prepare( $sql );
+        } catch (\Exception $e) {
+            debug_print_backtrace();
+            dd( $sql );
+        }
     }
 
     public static function count()
