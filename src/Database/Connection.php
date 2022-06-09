@@ -95,6 +95,7 @@ class Connection
             self::setOptions( $options );
 
             self::$connection = self::connect();
+            // self::$connection->exec("set names utf8");
 
             if ( self::$connection ) {
                 self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
