@@ -33,7 +33,7 @@ class Connection
         $user       = self::$options['user'] ?? NULL;
         $pass       = self::$options['password'] ?? NULL;
         $dbname     = self::$options['dbname'] ?? NULL;
-        $root       = Env::getRoot();
+        $root       = Env::getBase();
 
         if ( empty($driver) ) {
             throw new \Exception('Database driver is missing.');

@@ -4,40 +4,79 @@ namespace Slendie\Framework\Environment;
 class Env
 {
     protected static $instance = null;
-    protected static $env = '.env';
-    protected static $original_env = '.env';
-    protected static $data = [];
-    protected static $loaded = false;
-    protected static $root = null;
+    private static $env_file = "";
+    private static $env = [];
+    private static $base = "";
 
+    /* Constructor */
     private function __construct() {}
 
-    public static function getInstance()
+    /* Magic methods */
+    public function __get( $key )
     {
-        if ( is_null( self::$instance ) ) {
-            self::$instance = new Env();
-            self::load();
+        return self::get( $key );
+    }
+
+    /* Get a key from current config */
+    public static function get( $key )
+    {
+        self::checkInstance();
+        
+        if ( array_key_exists( $key, self::$env ) ) {
+            return self::$env[ $key ];
+        } else {
+            foreach( self::$env as $section ) {
+                if ( is_array( $section ) ) {
+                    if ( array_key_exists( $key, $section) ) {
+                        return $section[ $key ];
+                    }
+                }
+            }
         }
+
+        throw new \Exception('Environment key ' . $key . ' does not exists.');
+    }
+
+    public static function getInstance( $env_file = NULL )
+    {
+        self::checkInstance($env_file);
+
         return self::$instance;
     }
 
-    public static function setFile( $env )
+    private static function checkInstance( $env_file = NULL )
     {
-        self::$env = $env;
-        self::load();
+        if ( is_null(self::$instance) ) {
+            self::$instance = new Env();
+            self::setEnv( $env_file );
+
+            // Load data from file
+            self::$instance->load();
+
+            // Load aditional data
+            self::loadSettings();
+        }
     }
 
-    public static function setOriginalFile( $env )
+    public static function setEnv( $env_file = NULL )
     {
-        self::$original_env = $env;
+        if ( is_null( $env_file ) ) {
+            self::setDefaultEnv();
+            return;
+        } else {
+            self::$base = self::_getPath( $env_file );
+            self::$env_file = str_replace( self::$base, '', $env_file );
+        }
     }
 
-    public static function getFile()
-    {
-        return self::$env;
+    /* Set site folder and set default env file */
+    public static function setDefaultEnv() {
+        self::setBase( self::_getSiteFolder() );
+        self::$env_file = '.env';
     }
 
-    private static function setRootPath()
+    /* Get site folder path from system */
+    private static function _getSiteFolder()
     {
         $dir = explode( DIRECTORY_SEPARATOR, __DIR__ );
         if ( count( $dir ) > 5 ) {
@@ -45,65 +84,100 @@ class Env
         } else {
             throw \Exception(sprint('Cannot determine base path.'));
         }
-        self::$root = $path;
+        return $path;
     }
 
-    public static function get( $attr )
+    /* Set site folder path for this class */
+    public static function setBase( $site_folder )
     {
-        if ( !self::$loaded ) {
-            var_dump( debug_print_backtrace() );
-            throw new \Exception('Env file is not loaded.');
-        }
+        self::$base = $site_folder;
+    }
 
-        if ( array_key_exists( $attr,  self::$data ) ) {
-            return self::$data[ $attr ];
-        }
-        foreach( self::$data as $section ) {
-            if ( array_key_exists( $attr, $section ) ) {
-                return $section[ $attr ];
+    /* Get path for the $filePath */
+    private static function _getPath( $filePath )
+    {
+        $filePath = str_replace('/', DIRECTORY_SEPARATOR, $filePath);
+        $filePath = str_replace('\\', DIRECTORY_SEPARATOR, $filePath);
+        $parts = explode( DIRECTORY_SEPARATOR, $filePath );
+        $path = "";
+        for( $i = 0; $i < count($parts); $i++ ) {
+            if ( "" != $path ) {
+                $path .= DIRECTORY_SEPARATOR;
             }
+            $path .= $parts[$i];
         }
-        return null;
+        $path .= DIRECTORY_SEPARATOR;
+
+        return $path;
     }
 
-    public function __get( $attr ) 
+    public static function load( $env_file = NULL )
     {
-        if ( !self::$loaded ) {
-            throw new \Exception('Env file is not loaded.');
-        }
-        
-        return self::get( $attr );
-    }
+        self::_checkEnv( $env_file );
 
-    public static function load()
-    {
-        self::$data = [];
-        self::setRootPath();
-
-        $env = self::$root . self::$env;
-        
-        if ( !file_exists( $env ) ) {
-            throw new \Exception('Env file ' . $env . ' does not exists.');
-            return;
+        $file = self::getEnvFile();
+        if ( !file_exists($file) ) {
+            throw new \Exception( sprintf('File %s does not exists.', $file) );
         }
 
-        self::$data = parse_ini_file( $env, true );
-
-        self::$loaded = true;
+        self::$env = parse_ini_file( $file, true );
     }
 
-    public static function getRoot()
+    /* Determine if $env_file exists or if we need to get from default */
+    private static function _checkEnv( $env_file )
     {
-        return self::$root;
-    }
-
-    public static function mode( $mode )
-    {
-        if ( $mode == 'production' ) {
-            $env_file = self::$original_env;
+        if ( !is_null( $env_file ) ) {
+            self::setEnv( $env_file );
         } else {
-            $env_file = self::$original_env . "." . $mode;
+            self::setDefaultEnv();
         }
-        self::setFile( $env_file );
+    }
+
+    /* Determine full path of env file */
+    public static function getEnvFile()
+    {
+        return self::$base . self::$env_file;
+    }
+
+    public static function loadSettings()
+    {
+        // Load here other system default info
+        self::$env['base_dir'] = self::getBase();
+        self::$env['env_file'] = self::getEnvFile();
+    }
+
+    /* If base path not defined, then define based current file and return it */
+    public static function getBase()
+    {
+        if ( "" == self::$base ) {
+            self::$base = self::_getSiteFolder();
+        }
+        return self::$base;
+    }
+
+    public static function getSection( $section )
+    {
+        $section = self::get( $section );
+        if ( is_array( $section ) ) {
+            return $section;
+        } else {
+            return [];
+        }
+    }
+
+    public static function getKey( $section, $key )
+    {
+        self::checkInstance();
+
+        if ( array_key_exists( $section, self::$env ) ) {
+            if ( array_key_exists( $key, self::$env[$section] ) ) {
+                return self::$env[ $section ][ $key ];
+            } else {
+                return '';
+            }
+        } else {
+            return '';
+        }
+        
     }
 }
