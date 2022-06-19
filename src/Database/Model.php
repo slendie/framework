@@ -156,14 +156,14 @@ class Model
     {
         /* Extract Meta info from table */
         $sql = new Sql( $this->getTable() );
-        $select = $sql->select()->limit(1)->get();
+        $select = $sql->select('1')->limit(1)->get();
 
         try {
             $statement = self::$_dbh->query( $select );
             $columns_count = $statement->columnCount();
         } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $select );
+            die('Table ' . $this->getTable() . ' does not exists.' );
+            return false;
         }
         $columns = [];
 
@@ -177,6 +177,8 @@ class Model
                 'precision'     => $statement->getColumnMeta($i)['precision'],
             ];
         }
+
+        return true;
     }
 
     public function getMeta()
