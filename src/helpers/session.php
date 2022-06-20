@@ -52,7 +52,7 @@ if ( !function_exists('errors') ) {
 if ( !function_exists('old') ) {
     function old( $field, $default = null) 
     {
-        echo Flash::old( $field, $default );
+        return Flash::old( $field, $default );
     }
 }
 

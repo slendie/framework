@@ -81,7 +81,9 @@ class Model
     public function __get( $key )
     {
         if ( !array_key_exists( $key, $this->_data ) ) {
-            throw new \Exception('Atributo ' . $key . ' inexistente na tabela ' . $this->getTable() );
+            // throw new \Exception('Atributo ' . $key . ' inexistente na tabela ' . $this->getTable() );
+            // HERE
+            $this->_data[ $key ] = '';
         }
 
         if ( array_key_exists( $key, $this->_meta ) ) {
@@ -135,7 +137,10 @@ class Model
     {
         $class = get_called_class();
         $model = new $class;
-        $model = $class::find( $this->{$this->_id} );
+
+        if ( isset( $this->{$this->_id} ) ) {
+            $model = $class::find( $this->{$this->_id} );
+        }
 
         return $model;
     }
@@ -184,6 +189,11 @@ class Model
     public function getMeta()
     {
         return $this->_meta;
+    }
+
+    public function getColumnName( $column )
+    {
+        return $this->getTable() . "." . $column;
     }
 
     private static function columnRelated( $table )
@@ -376,6 +386,38 @@ class Model
         return $class::fetchAll( $select );
     }
 
+    public function manyToMany( $model, $related_column = NULL, $model_related_column = NULL, $link_table = NULL )
+    {
+        $current = $this->copy();
+
+        $this_table = $this->getTable();
+        $model_table = $model->getTable();
+
+        if ( is_null( $link_table ) ) {
+            if ( $this_table < $model_table ) {
+                $table = $this_table . '_' . $model_table;
+            } else {
+                $table = $model_table . '_' . $this_table;
+            }
+        } else {
+            $table = $link_table;
+        }
+
+        if ( empty( $related_column ) ) {
+            $related_column = self::columnRelated( $current->getTable() );
+        }
+
+        if ( empty( $model_related_column ) ) {
+            $model_related_column = $model::columnRelated( $model->getTable() );
+        }
+
+        $sql = new Sql( $model->getTable() );
+        $select = $sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id )->get();
+
+        $class = get_class( $model );
+        return $class::fetchAll( $select );
+    }
+
     public static function prepare( $sql )
     {
         try {
@@ -463,5 +505,16 @@ class Model
     public function lastInsertId()
     {
         return self::$_dbh->lastInsertId();
+    }
+
+    public static function where( $column, $value )
+    {
+        $class = get_called_class();
+        $model = new $class;
+
+        $model->_sql = new Sql( $model->getTable() );
+        $model->_sql->select()->where( $column, $value );
+
+        return $model;
     }
 }

@@ -240,7 +240,8 @@ class Database
     protected static $connection = null;
     protected static $options = [];
 
-    private function __construct() {}
+    private function __construct() {
+    }
 
     public static function getInstance( $options = [] )
     {
@@ -286,8 +287,13 @@ class Database
         }
 
         if ( is_null( self::$connection ) ) {
-            self::$connection = Connection::getConnection( self::$options );
-            self::$instance->conn = self::$connection;
+            try {
+                self::$connection = Connection::getConnection( self::$options );
+                self::$instance->conn = self::$connection;
+            } catch ( \Exception $e ) {
+                throw new \Exception('Database does not exists');
+            }
+
         }
 
         if ( !is_a( self::$instance->conn, 'PDO' )) {

@@ -62,7 +62,8 @@ class Session
         if ( !array_key_exists( $attribute, $_SESSION ) ) {
             return false;
         }
-        return array_key_exists( $index, $_SESSION[ $attribute ] );
+        $resp = array_key_exists( $index, $_SESSION[ $attribute ] );
+        return $resp;
     }
 
     public static function flushArrayItem( $attribute, $index )

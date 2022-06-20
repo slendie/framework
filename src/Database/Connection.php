@@ -12,7 +12,8 @@ class Connection
     private static $options = [];
 
     /* Singleton */
-    private function __construct() {}
+    private function __construct() {
+    }
 
     public static function setOptions( $options ) 
     {

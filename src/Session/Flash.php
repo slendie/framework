@@ -84,9 +84,13 @@ class Flash
 
     public static function getOld( $field, $default = null )
     {
-        $value = Session::getArrayItem('old', $field);
-        if ( is_null( $value ) ) {
-            return $default;
+        if ( self::hasOld( $field ) ) {
+            $value = Session::getArrayItem('old', $field);
+            if ( is_null( $value ) ) {
+                return $default;
+            }
+        } else {
+            $value = $default;
         }
         return $value;
     }
@@ -101,7 +105,11 @@ class Flash
         $request = Request::getInstance();
 
         if ( isset( $request->{$field} ) ) {
-            $value = $request->{$field};
+            if ( !is_null( $request->{$field} ) ) {
+                $value = $request->{$field};
+            } else {
+                $value = $default;
+            }
         } else {
             if ( self::hasOld( $field ) ) {
                 $value = self::getOld( $field );
