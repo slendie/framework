@@ -261,6 +261,14 @@ class Sql
         return $this;
     }
     
+    public function updateRaw( $text )
+    {
+        $this->statement = "UPDATE " . self::encapsulate( $this->currentTable() ) . " SET ";
+        $this->statement .= $text;
+        $this->statement .= implode(', ', $sets) . " ";
+        return $this;
+    }
+    
     /**
      * Build a DELETE statement.
      */
