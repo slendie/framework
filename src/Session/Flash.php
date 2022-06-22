@@ -86,6 +86,7 @@ class Flash
     {
         if ( self::hasOld( $field ) ) {
             $value = Session::getArrayItem('old', $field);
+            Session::flushArrayItem('old', $field);
             if ( is_null( $value ) ) {
                 return $default;
             }
