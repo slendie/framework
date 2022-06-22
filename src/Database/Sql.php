@@ -354,8 +354,10 @@ class Sql
         if ( is_array( $args ) ) {
             $first = true;
             foreach( $args as $column_name => $column_order ) {
+                $column_name = self::encapsulate( $column_name );
+                
                 if ( empty( $column_order ) ) {
-                    $column_order = self::encapsulate( $order );
+                    $column_order = $order;
                 }
                 if ( !$first ) {
                     $this->order .= ", ";
