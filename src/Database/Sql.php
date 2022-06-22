@@ -265,7 +265,6 @@ class Sql
     {
         $this->statement = "UPDATE " . self::encapsulate( $this->currentTable() ) . " SET ";
         $this->statement .= $text;
-        $this->statement .= implode(', ', $sets) . " ";
         return $this;
     }
     
