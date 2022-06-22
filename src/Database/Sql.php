@@ -355,7 +355,7 @@ class Sql
             $first = true;
             foreach( $args as $column_name => $column_order ) {
                 if ( empty( $column_order ) ) {
-                    $column_order = $order;
+                    $column_order = self::encapsulate( $order );
                 }
                 if ( !$first ) {
                     $this->order .= ", ";
