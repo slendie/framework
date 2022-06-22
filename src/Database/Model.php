@@ -310,6 +310,12 @@ class Model
         return self::fetch( $select );
     }
 
+    public function exec( $sql, $data )
+    {
+        $dbh = self::prepare( $insert );
+        return $dbh->execute( $data );
+    }
+
     /**
      * Find a child relationship, one-to-one
      */
@@ -473,8 +479,7 @@ class Model
         $sql->setPrepareMode();
         $insert = $sql->insert( $data )->get();
        
-        $dbh = self::prepare( $insert );
-        $res = $dbh->execute( $sql->values() );
+        return $this->exec( $insert, $sql->values() );
     }
 
     public function update( $data )
@@ -488,8 +493,7 @@ class Model
         $sql->setPrepareMode();
         $update = $sql->update( $data )->where( $this->_id, $this->_data[ $this->_id ] )->get();
 
-        $dbh = self::prepare( $update );
-        return $dbh->execute( $sql->values() );
+        return $this->exec( $update, $sql->values() );
     }
 
     public function delete()
@@ -504,8 +508,7 @@ class Model
             $sql->setPrepareMode();
             $delete = $sql->delete()->where( $this->_id, $this->_data[ $this->_id ] )->get();
 
-            $dbh = self::prepare( $delete );
-            return $dbh->execute( $sql->values() );
+            return $this->exec( $delete, $sql->values() );
         }
     }
 
