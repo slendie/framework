@@ -312,7 +312,7 @@ class Model
 
     public function exec( $sql, $data )
     {
-        $dbh = self::prepare( $insert );
+        $dbh = self::prepare( $sql );
         return $dbh->execute( $data );
     }
 
