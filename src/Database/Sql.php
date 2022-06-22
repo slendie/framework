@@ -355,13 +355,15 @@ class Sql
             $first = true;
             foreach( $args as $column_name => $column_order ) {
                 $column_name = self::encapsulate( $column_name );
-                
+
                 if ( empty( $column_order ) ) {
-                    $column_order = $order;
+                    $column_order = 'ASC';
                 }
+
                 if ( !$first ) {
                     $this->order .= ", ";
                 }
+                
                 $first = false;
                 $this->order .= "{$column_name} {$column_order} ";
             }
