@@ -351,7 +351,7 @@ class Model
     /**
      * Find a child relationship, one-to-many
      */
-    public function hasMany( $model, $related_column = '' )
+    public function hasMany( $model, $related_column = '', $order = '' )
     {
         $current = $this->copy();
         
@@ -360,7 +360,14 @@ class Model
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $current->id() )->get();
+        $sql = $sql->select()->where( $related_column, $current->id() );
+
+        if ( empty( $order ) ) {
+            $select = $sql->get();
+        } else {
+            $select = $sql->order( $order )->get();
+        }
+        
 
         // return self::fetchAll( $select );
         $class = get_class( $model );
@@ -370,7 +377,7 @@ class Model
     /**
      * Find a parent relationship, one-to-many
      */
-    public function belongsToMany( $model, $related_column )
+    public function belongsToMany( $model, $related_column = '', $order = '' )
     {
         $current = $this->copy();
         
@@ -379,14 +386,20 @@ class Model
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
+        $sql = $sql->select()->where( $model->getId() , $current->{$related_column} );
+
+        if ( empty( $order ) ) {
+            $select = $sql->get();
+        } else {
+            $select = $sql->order( $order )->get();
+        }
 
         // return self::fetchAll( $select );
         $class = get_class( $model );
         return $class::fetchAll( $select );
     }
 
-    public function manyToMany( $model, $related_column = NULL, $model_related_column = NULL, $link_table = NULL )
+    public function manyToMany( $model, $related_column = NULL, $model_related_column = NULL, $link_table = NULL, $order = '' )
     {
         $current = $this->copy();
 
@@ -412,7 +425,13 @@ class Model
         }
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id )->get();
+        $sql = $sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
+
+        if ( empty( $order ) ) {
+            $select = $sql->get();
+        } else {
+            $select = $sql->order( $order )->get();
+        }
 
         $class = get_class( $model );
         return $class::fetchAll( $select );

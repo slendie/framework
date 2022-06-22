@@ -264,7 +264,7 @@ class Sql
     public function updateRaw( $text )
     {
         $this->statement = "UPDATE " . self::encapsulate( $this->currentTable() ) . " SET ";
-        $this->statement .= $text;
+        $this->statement .= $text . " ";
         return $this;
     }
     
