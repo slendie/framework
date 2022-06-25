@@ -160,8 +160,8 @@ class Model
     private function setMeta()
     {
         /* Extract Meta info from table */
-        $sql = new Sql( $this->getTable() );
-        $select = $sql->select('1')->limit(1)->get();
+        $this->_sql = new Sql( $this->getTable() );
+        $select = $this->_sql->select('1')->limit(1)->get();
 
         try {
             $statement = self::$_dbh->query( $select );
@@ -327,8 +327,8 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $current->id() )->get();
+        $this->_sql = new Sql( $model->getTable() );
+        $select = $this->_sql->select()->where( $related_column, $current->id() )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -346,8 +346,8 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
+        $this->_sql = new Sql( $model->getTable() );
+        $select = $this->_sql->select()->where( $model->getId() , $current->{$related_column} )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -365,13 +365,13 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
-        $sql = new Sql( $model->getTable() );
-        $sql = $sql->select()->where( $related_column, $current->id() );
+        $this->_sql = new Sql( $model->getTable() );
+        $sql = $this->_sql->select()->where( $related_column, $current->id() );
 
         if ( empty( $order ) ) {
-            $select = $sql->get();
+            $select = $this->_sql->get();
         } else {
-            $select = $sql->order( $order )->get();
+            $select = $this->_sql->order( $order )->get();
         }
         
 
@@ -391,13 +391,13 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
-        $sql = new Sql( $model->getTable() );
-        $sql = $sql->select()->where( $model->getId() , $current->{$related_column} );
+        $this->_sql = new Sql( $model->getTable() );
+        $sql = $this->_sql->select()->where( $model->getId() , $current->{$related_column} );
 
         if ( empty( $order ) ) {
-            $select = $sql->get();
+            $select = $this->_sql->get();
         } else {
-            $select = $sql->order( $order )->get();
+            $select = $this->_sql->order( $order )->get();
         }
 
         // return self::fetchAll( $select );
@@ -430,13 +430,13 @@ class Model
             $model_related_column = $model::columnRelated( $model->getTable() );
         }
 
-        $sql = new Sql( $model->getTable() );
-        $sql = $sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
+        $this->_sql = new Sql( $model->getTable() );
+        $sql = $this->_sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
 
         if ( empty( $order ) ) {
-            $select = $sql->get();
+            $select = $this->_sql->get();
         } else {
-            $select = $sql->order( $order )->get();
+            $select = $this->_sql->order( $order )->get();
         }
 
         $class = get_class( $model );
@@ -475,11 +475,11 @@ class Model
             $data['updated_at'] = date('Y-m-d H:i:s');
         }
 
-        $sql = new Sql( $this->getTable() );
-        $sql->setPrepareMode();
-        $insert = $sql->insert( $data )->get();
+        $this->_sql = new Sql( $this->getTable() );
+        $this->_sql->setPrepareMode();
+        $insert = $this->_sql->insert( $data )->get();
        
-        return $this->exec( $insert, $sql->values() );
+        return $this->exec( $insert, $this->_sql->values() );
     }
 
     public function update( $data )
@@ -489,11 +489,11 @@ class Model
             $data['updated_at'] = date('Y-m-d H:i:s');
         }
 
-        $sql = new Sql( $this->getTable() );
-        $sql->setPrepareMode();
-        $update = $sql->update( $data )->where( $this->_id, $this->_data[ $this->_id ] )->get();
+        $this->_sql = new Sql( $this->getTable() );
+        $this->_sql->setPrepareMode();
+        $update = $this->_sql->update( $data )->where( $this->_id, $this->_data[ $this->_id ] )->get();
 
-        return $this->exec( $update, $sql->values() );
+        return $this->exec( $update, $this->_sql->values() );
     }
 
     public function delete()
@@ -504,11 +504,11 @@ class Model
             ];
             return $this->update( $data );
         } else {
-            $sql = new Sql( $this->getTable() );
-            $sql->setPrepareMode();
-            $delete = $sql->delete()->where( $this->_id, $this->_data[ $this->_id ] )->get();
+            $this->_sql = new Sql( $this->getTable() );
+            $this->_sql->setPrepareMode();
+            $delete = $this->_sql->delete()->where( $this->_id, $this->_data[ $this->_id ] )->get();
 
-            return $this->exec( $delete, $sql->values() );
+            return $this->exec( $delete, $this->_sql->values() );
         }
     }
 
@@ -538,5 +538,10 @@ class Model
         $model->_sql->select()->where( $column, $value );
 
         return $model;
+    }
+
+    public function lastSql()
+    {
+        return $this->_sql->get();
     }
 }

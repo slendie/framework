@@ -32,7 +32,7 @@ class Loader
     public function __construct( $template_file = null, $params = [] )
     {
         $this->template_file = $template_file;
-        $this->params = $params;
+        $this->setData( $params );
 
         $this->rootpath = env('base_dir');
         $this->path = env('view_path');
@@ -48,6 +48,21 @@ class Loader
         $this->parseMagicFunctions();
 
         $this->parsePhp();
+    }
+
+    public function set( $content )
+    {
+        $this->doc = $content;
+    }
+
+    /**
+     * Return $doc template
+     * 
+     * @return string $doc
+     */
+    public function get()
+    {
+        return $this->doc;
     }
 
     /**
@@ -399,16 +414,6 @@ class Loader
     }
 
     /**
-     * Return $doc template
-     * 
-     * @return string $doc
-     */
-    public function get()
-    {
-        return $this->doc;
-    }
-
-    /**
      * Render $doc as php
      * 
      * @return void
@@ -418,5 +423,10 @@ class Loader
         $cache_file = $this->filename( $this->template_file, $this->cache );
         $this->file_force_contents( $cache_file, $this->doc );
         $this->doc = $this->load( $this->template_file, $this->cache, $this->params );
+    }
+
+    public function setData( $params ) 
+    {
+        $this->params = $params;
     }
 }
