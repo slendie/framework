@@ -11,7 +11,7 @@ class Template
 
     public function render( $template, $params = [] )
     {
-        $this->loader = new TemplateLoader( $template, $params );
+        $this->loader = new Loader( $template, $params );
         $this->loader->render();
         return $this->loader->get();
     }

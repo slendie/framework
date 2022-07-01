@@ -12,7 +12,8 @@ class Connection
     private static $options = [];
 
     /* Singleton */
-    private function __construct() {}
+    private function __construct() {
+    }
 
     public static function setOptions( $options ) 
     {
@@ -33,7 +34,7 @@ class Connection
         $user       = self::$options['user'] ?? NULL;
         $pass       = self::$options['password'] ?? NULL;
         $dbname     = self::$options['dbname'] ?? NULL;
-        $root       = Env::getRoot();
+        $root       = Env::getBase();
 
         if ( empty($driver) ) {
             throw new \Exception('Database driver is missing.');
@@ -95,6 +96,7 @@ class Connection
             self::setOptions( $options );
 
             self::$connection = self::connect();
+            // self::$connection->exec("set names utf8");
 
             if ( self::$connection ) {
                 self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );

@@ -1,68 +1,53 @@
 <?php
 namespace Slendie\Framework\View;
 
+use Slendie\Framework\Routing\Router;
+use Slendie\Framework\Routing\Request;
+
 class Loader
 {
-    const KEY_WORD = '\w\.\_\-\>\)\(';
-    protected $base = "";
-    protected $path = "";
-    protected $extension = "";
-    protected $template = "";
-    protected $doc = "";
-    protected $data = [];
+    const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
+    const NAME_PATTERN = '[A-Za-z0-9\.\-\_]{1,}';
+    const WORD_PATTERN = '[^\']{1,}';
+    const ANYWORD_PATTERN = '[,\w\.\_\-\>\)\(\[\]\b\s\\\'\=\$]';
 
-    public function __construct()
-    {
-    }
+    protected $extended = '';
+    protected $template = '';
+    protected $doc = '';
+    protected $sections = [];
 
-    public function setBase( $folder ): void
-    {
-        $this->base = $folder;
-    }
+    protected $template_file;
+    protected $params;
 
-    /**
-     * Set default folder for views.
-     * If not used, default folder is resources/views
-     * @param string $folder Folder where views are
-     * @return void
-     */
-    public function setPath( $folder ): void 
-    {
-        $path = str_replace( '.', DIRECTORY_SEPARATOR, $folder);
-        if ( substr( $path, -1 ) != DIRECTORY_SEPARATOR ) {
-            $path .= DIRECTORY_SEPARATOR;
-        }
-        $this->path = $path;
-    }
-
-    public function setTemplate( $template ): void
-    {
-        $this->template = $template;
-    }
+    protected $rootpath;
+    protected $path;
+    protected $cache;
+    protected $ext;
 
     /**
-     * Set default template extension for view.
-     * If not used, default extension is .tpl.php
-     * @param string $extension Extension for views
+     * Define template and build all doc.
+     * 
      * @return void
      */
-    public function setExtension( $extension ): void 
+    public function __construct( $template_file = null, $params = [] )
     {
-        $this->extension = $extension;
-    }
+        $this->template_file = $template_file;
+        $this->setData( $params );
 
-    public function setKey( $key, $value ) 
-    {
-        $this->data[ $key ] = $value;
-    }
+        $this->rootpath = env('base_dir');
+        $this->path = env('view_path');
+        $this->cache = env('view_cache');
+        $this->ext = env('view_extension');
 
-    public function setData( $data ) 
-    {
-        if ( is_array( $data ) ) {
-            foreach( $data as $key => $value ) {
-                $this->setKey( $key, $value );
-            }
+        if ( !is_null( $this->template_file ) ) {
+            $this->template = $this->read( $this->template_file );
         }
+
+        $this->parseLoad();
+
+        $this->parseMagicFunctions();
+
+        $this->parsePhp();
     }
 
     public function set( $content )
@@ -70,179 +55,378 @@ class Loader
         $this->doc = $content;
     }
 
-    public function get() 
+    /**
+     * Return $doc template
+     * 
+     * @return string $doc
+     */
+    public function get()
     {
         return $this->doc;
     }
 
-    public function replace( $search, $replace_to )
-    {
-        $this->set( str_replace( $search, $replace_to, $this->get() ));
-    }
-
-    public function pregReplace( $pattern, $replace_to )
-    {
-        $this->set( preg_replace( $pattern, $replace_to, $this->get() ));
-    }
-
-    public function base(): string
-    {
-        return $this->base;
-    }
-    
     /**
-     * Get default folder.
-     * @return string Folder 
+     * Write file.
+     * If directory structure does not exists, create it.
+     * 
+     * @return void
      */
-    public function path(): string 
-    {
-        return $this->path;
-    }
-
-    public function data(): array
-    {
-        return $this->data;
-    }
-
-    public function extension(): string
-    {
-        return $this->extension;
-    }
-    
-    public function key( string $key )
-    {
-        if ( $this->keyExists( $key )) {
-            return $this->data[ $key ];
-        } else {
-            return NULL;
-        }
-    }
-
-    public function extract( string $pattern )
-    {
-        preg_match_all( $pattern, $this->get(), $matches );
-        return $matches;
-    }
-
-    public function load( $template, $data = [] )
-    {
-        $this->setTemplate( $template );
-        $this->setData( $data );
-
-        return $this->parse();
-    }
-
-    public function parse($return_doc = true)
-    {
-        if ( '' == $this->template ) {
-            return '';
-        }
-
-        $template = str_replace('.', DIRECTORY_SEPARATOR, $this->template);
-        $filename = $this->base() . $this->path() . $template . '.' . $this->extension;
-
-        if ( !file_exists( $filename ) ) {
-            throw new \Exception( sprintf('%s file was not found.', $filename));
-        }
-
-        if ( count( $this->data ) > 0 ) {
-            extract( $this->data );
-        }
-
-        ob_start();
-        include $filename;
-        $this->set( ob_get_clean() );
-
-        if ( $return_doc ) {
-            return $this->get();
-        }
-    }
-
-    public function keyExists( $key ): bool
-    {
-        return array_key_exists( $key, $this->data() );
-    }
-
-    public function parseKeys( $subject, $with_slashes = false ): string
-    {
-        $key_pattern = '/\$([' . self::KEY_WORD . ']*)/';
-        preg_match_all( $key_pattern, $subject, $matches );
-
-        foreach( $matches[0] as $i => $found ) {
-            $key = $matches[1][$i];
-            if ( true == strpos( $key, '->' ) ) {
-                $obj_parts = explode('->', $key);
-                if ( $this->keyExists( $obj_parts[0]) ) {
-                    // $obj = $this->key( $obj_parts[0] );
-                    $obj = $this->key( array_shift( $obj_parts ) );
-                    $rest = implode('->', $obj_parts);
-
-                    $eval = '$check = !is_null($obj->' . $rest . ');';
-                    // xdebug_var_dump($eval);
-                    eval($eval);
-                    // xdebug_var_dump($check);
-                    // $check = true;
-                    // while( count($obj_parts) > 0 && $check == true ) {
-                    //     $property = array_shift($obj_parts);
-                    //     if ( endsWith(')', $property) ) {
-                    //         if ( method_exists($obj, $property) ) {
-                    //             $eval = '$check = !is_null( $obj->' . $property . ');';
-                    //             eval($eval);
-                    //         } else {
-                    //             $check = false;
-                    //         }
-                    //     } else {
-                    //         if ( property_exists( $obj, $property )) {
-                    //             $eval = '$check = !is_null( $obj->' . $property . ');';
-                    //             eval($eval);
-                    //         } else {
-                    //             $check = false;
-                    //         }
-                    //     }
-                    //     if ($check) {
-                    //         eval('$obj = $obj->' . $property . ';');
-                    //     }
-                    // }
-                    if ($check) {
-                        // $param_value = $obj;
-                        $eval = '$param_value = $obj->' . $rest . ';';
-                        eval($eval);
-                        if ( is_numeric($param_value) ) {
-                            $subject = str_replace( $found, $param_value, $subject );
-    
-                        } elseif ( !is_array($param_value) ) {
-                            // $subject = str_replace( $found, "'".addslashes($param_value)."'", $subject );
-                            if ( $with_slashes ) {
-                                $subject = str_replace( $found, "'".addslashes($param_value)."'", $subject );
-                            } else {
-                                $subject = str_replace( $found, $param_value, $subject );
-                            }
-                            
-                        }
-                    }
-                    
-                }
-            } else {
-                if ( $this->keyExists( $matches[1][$i] ) ) {
-                    $value = $this->key( $matches[1][$i] );
-
-                    if ( is_numeric($value) ) {
-                        $subject = str_replace( $found, $value, $subject );
-
-                    } elseif ( !is_array($value) ) {
-                        // $subject = str_replace( $found, "'".addslashes($value)."'", $subject );
-                        if ( $with_slashes ) {
-                            $subject = str_replace( $found, "'".addslashes($value)."'", $subject );
-                        } else {
-                            $subject = str_replace( $found, $value, $subject );
-                        }
-                        
-                    }
-
-                }
+    private function file_force_contents($fullfile, $contents){
+        $parts = explode(DIRECTORY_SEPARATOR, $fullfile);
+        $file = array_pop($parts);
+        
+        $dir = '';
+        foreach( $parts as $part ) {
+            $dir .= $part . DIRECTORY_SEPARATOR;
+            if ( !is_dir( $dir ) ) {
+                mkdir( $dir );
             }
         }
 
-        return $subject;
+        file_put_contents($fullfile, $contents);
+    }
+
+    /**
+     * Build file full name (with path).
+     * 
+     * @return string $filename
+     */
+    private function filename( $template_file, $path = null )
+    {
+        if ( is_null( $path ) ) {
+            $path = $this->path;
+        }
+        return $this->rootpath . str_replace( '.', DIRECTORY_SEPARATOR, $path ) . DIRECTORY_SEPARATOR . str_replace( '.', DIRECTORY_SEPARATOR, $template_file ) . '.' . $this->ext;
+    }
+
+    /**
+     * Read file from system.
+     * 
+     * @return string $content
+     */
+    public function read( $template_file, $path = null, $params = [] )
+    {
+        if ( is_null( $path ) ) {
+            $path = $this->path;
+        }
+        $filename = $this->filename( $template_file, $path );
+        if ( !file_exists( $filename ) ) {
+            throw new \Exception('Ficheiro ' . $filename . ' não existe.');
+            exit;
+        }
+        $content = file_get_contents( $filename );
+        return $content;
+    }
+
+    /**
+     * Parse php file from system.
+     * 
+     * @return string $content
+     */
+    public function load( $template_file, $path = null, $params = [] )
+    {
+        if ( is_null( $path ) ) {
+            $path = $this->path;
+        }
+        ob_start();
+        if ( count( $params ) > 0 ) {
+            extract( $params );
+        }
+        include( $this->filename( $template_file, $path ) );
+        $content = ob_get_clean();
+        return $content;
+    }
+
+    public function parseLoad()
+    {
+        // Extended
+        $extend_pattern = '/@extends\([b]*\'(' . self::NAME_PATTERN . ')\'[b]*\)/';
+        preg_match( $extend_pattern, $this->template, $matches );
+
+        if ( count( $matches ) > 0 ) {
+            // $this->extended = $this->read( $matches[1] );
+            $loader = new Loader( $matches[1] );
+            $this->extended = $loader->get();
+
+            $this->template = str_replace( $matches[0], '', $this->template);
+            $matches = [];
+
+            // Sections
+            $sections_pattern = '/@section\([\s]*\'(' . self::NAME_PATTERN . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?[\s]*(.*?)@endsection(?:' . self::BREAK_LINE . ')?/s';
+            preg_match_all( $sections_pattern, $this->template, $matches );
+
+            if ( count( $matches ) > 0 ) {
+                foreach( $matches[1] as $i => $key ) {
+                    $this->sections[ $key ] = $matches[2][$i];
+                    $this->template = str_replace( $matches[0][$i], '', $this->template);
+                }
+            }
+            $matches = [];
+            
+            // Yield
+            $yield_pattern = '/@yield\([\s]*\'(' . self::NAME_PATTERN . ')\'[\s]*\)/';
+            preg_match_all( $yield_pattern, $this->extended, $matches);
+
+            $this->doc = $this->extended;
+            $this->extended = '';
+
+            foreach( $matches[1] as $i => $key ) {
+                if ( array_key_exists( $key, $this->sections ) ) {
+                    $this->doc = str_replace( $matches[0][$i], $this->sections[ $key ], $this->doc);
+                } else {
+                    $this->doc = str_replace( $matches[0][$i], '', $this->doc);
+                }
+            }
+            $matches = [];
+        } else {
+            $this->doc = $this->template;
+        }
+
+        // Includes
+        $include_pattern = '/@include\([\s]*\'(' . self::NAME_PATTERN . ')\'[\s]*\)/';
+        preg_match_all( $include_pattern, $this->doc, $matches);
+
+        if ( count( $matches ) > 0 ) {
+            foreach( $matches[1] as $i => $include ) {
+                $loader = new Loader( $include );
+                $content = $loader->get();
+
+                $this->doc = str_replace( $matches[0][$i], $content, $this->doc );
+            }
+        }
+        $matches = [];
+    }
+
+    /**
+     * Parse magic functions (starting with @)
+     * 
+     * @return void
+     */
+    public function parseMagicFunctions()
+    {
+        // Assets
+        $this->doc = $this->parseMagicAsset( $this->doc );
+
+        // Route
+        $this->doc = $this->parseMagicRoute( $this->doc );
+    }
+
+    /**
+     * Parse magic function @asset('resource')
+     * 
+     * @return string $doc
+     */
+    private function parseMagicAsset( $doc )
+    {
+        $asset_pattern = '/@asset\([\s]*\'(' . self::WORD_PATTERN . ')\'[\s]*\)/';
+        preg_match_all( $asset_pattern, $doc, $matches);
+
+        $request = Request::getInstance();
+
+        if ( count( $matches ) > 0 ) {
+            foreach( $matches[1] as $i => $asset ) {
+                $doc = str_replace( $matches[0][$i], $request->base() . $matches[1][$i], $doc);
+            }
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Parse magic function @route('route', ['param' => $value])
+     * 
+     * @return string $doc;
+     */
+    private function parseMagicRoute( $doc )
+    {
+        $route_pattern = '/@route\(([\s]*\'' . self::WORD_PATTERN . '\'[\s]*[,]?' . self::ANYWORD_PATTERN . '*)\)/';
+        preg_match_all( $route_pattern, $doc, $matches);
+
+        foreach( $matches[0] as $i => $route ) {
+            $doc = str_replace( $route, "<?php echo route( " . $matches[1][$i] . " ); ?>", $doc );
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Parse php blocks: if, for, foreach.
+     * 
+     * @return void;
+     */
+    public function parsePhp()
+    {
+        // if
+        $this->doc = $this->parsePhpIf( $this->doc );
+
+        // for
+        $this->doc = $this->parsePhpFor( $this->doc );        
+
+        // foreach
+        $this->doc = $this->parsePhpForEach( $this->doc );
+
+        // echo
+        $this->doc = $this->parsePhpEcho( $this->doc );
+    }
+
+    /**
+     * Parse php block if
+     * 
+     * @return string $doc
+     */
+    private function parsePhpIf( $doc )
+    {
+        $if_pattern = '/\{% if ([^%\}]*) %\}/s';
+        preg_match_all( $if_pattern, $doc, $matches);
+
+        foreach( $matches[1] as $i => $cond ) {
+            $doc = str_replace( $matches[0][$i], '<?php if (' . $cond . ') { ?>', $doc);
+        }
+
+        $else_pattern = '/\{% else %\}/s';
+        preg_match_all( $else_pattern, $doc, $matches);
+
+        foreach( $matches[0] as $i => $item ) {
+            $doc = str_replace( $matches[0][$i], '<?php } else { ?>', $doc);
+        }
+
+        $elseif_pattern = '/\{% elseif ([^%\}]*) %\}/s';
+        preg_match_all( $elseif_pattern, $doc, $matches);
+
+        foreach( $matches[1] as $i => $cond ) {
+            $doc = str_replace( $matches[0][$i], '<?php } elseif ' . $cond . ' { ?>', $doc);
+        }
+
+        $endif_pattern = '/\{% endif %\}/s';
+        preg_match_all( $endif_pattern, $doc, $matches);
+
+        foreach( $matches[0] as $i => $item ) {
+            $doc = str_replace( $matches[0][$i], '<?php } ?>', $doc);
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Parse php block for
+     * 
+     * @return string $doc
+     */
+    private function parsePhpFor( $doc )
+    {
+        $for_pattern = '/\{% for ([^%\}]*) %\}/s';
+        preg_match_all( $for_pattern, $doc, $matches);
+
+        foreach( $matches[1] as $i => $cond ) {
+            $doc = str_replace( $matches[0][$i], '<?php for ' . $cond . ' { ?>', $doc);
+        }
+
+        $endfor_pattern = '/\{% endfor %\}/s';
+        preg_match_all( $endfor_pattern, $doc, $matches);
+
+        foreach( $matches[0] as $i => $item ) {
+            $doc = str_replace( $matches[0][$i], '<?php } ?>', $doc);
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Parse php block foreach
+     * 
+     * @return string $doc
+     */
+    private function parsePhpForEach( $doc )
+    {
+        $foreach_pattern = '/\{% foreach ([^%\}]*) %\}/s';
+        preg_match_all( $foreach_pattern, $doc, $matches);
+
+        foreach( $matches[1] as $i => $cond ) {
+            $doc = str_replace( $matches[0][$i], '<?php foreach ' . $cond . ' { ?>', $doc);
+        }
+
+        $endforeach_pattern = '/\{% endforeach %\}/s';
+        preg_match_all( $endforeach_pattern, $doc, $matches);
+
+        foreach( $matches[0] as $i => $item ) {
+            $doc = str_replace( $matches[0][$i], '<?php } ?>', $doc);
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Parse php keys {{ }}
+     * 
+     * @return stirng $doc
+     */
+    private function parsePhpEcho( $doc )
+    {
+        $echo_pattern = '/\{\{ ([^\}]*) \}\}/s';
+        preg_match_all( $echo_pattern, $doc, $matches);
+
+        foreach( $matches[1] as $i => $echo ) {
+            // Modifiers
+            $modifiers = explode('|', $echo);
+            // dd( $modifiers );
+            $echo = $modifiers[0];
+            if ( count( $modifiers ) > 1 ) {
+                for( $t = 1; $t < count( $modifiers ); $t++) {
+                    $base_modifier = explode(':', $modifiers[$t] );
+                    switch( $base_modifier[0] ) {
+                        case 'money':
+                        case 'decimal':
+                            if ( count( $base_modifier ) > 1 ) {
+                                $decimals = $base_modifier[1];
+                            } else {
+                                $decimals = 2;
+                            }
+                            $echo = 'number_format( ' . $echo . ', ' . $decimals . ', ",", "." )';
+                            break;
+
+                        case 'upper':
+                            $echo = 'strtoupper( ' . $echo . ' ) ';
+                            break;
+
+                        case 'lower':
+                            $echo = 'strtolower( ' . $echo . ' ) ';
+                            break;
+
+                        case 'first':
+                            $echo = 'ucfirst( ' . $echo . ' ) ';
+                            break;
+
+                        case 'html':
+                            $echo = 'nl2br( htmlentities( ' . $echo . ', ENT_NOQUOTES ) ) ';
+                            break;
+
+                        case 'blank':
+                            $echo = 'nl2br( str_replace(" ", "&nbsp;", ' . $echo . ' ) ) ';
+                            break;
+                    }
+                }
+            }
+            // dd( $modifiers );
+            $doc = str_replace( $matches[0][$i], '<?php echo ' . $echo . '; ?>', $doc);
+        }
+
+        return $doc;
+    }
+
+    /**
+     * Render $doc as php
+     * 
+     * @return void
+     */
+    public function render()
+    {
+        $cache_file = $this->filename( $this->template_file, $this->cache );
+        $this->file_force_contents( $cache_file, $this->doc );
+        $this->doc = $this->load( $this->template_file, $this->cache, $this->params );
+    }
+
+    public function setData( $params ) 
+    {
+        $this->params = $params;
     }
 }

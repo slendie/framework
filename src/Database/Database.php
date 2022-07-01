@@ -8,10 +8,6 @@ use PDOStatement;
 
 class Database
 {
-    protected static $instance = null;
-    protected static $connection = null;
-    protected static $options = [];
-
     const COLLATES  = [
         'big5_chinese_ci'       => 'big5',
         'big5_bin'              => 'big5',
@@ -237,7 +233,15 @@ class Database
         'gb18030_unicode_520_ci' => 'gb18030',
     ];
 
-    private function __construct() {}
+    const FETCH_ASSOCIATIVE = 1;
+    const FETCH_CLASS = 2;
+
+    protected static $instance = null;
+    protected static $connection = null;
+    protected static $options = [];
+
+    private function __construct() {
+    }
 
     public static function getInstance( $options = [] )
     {
@@ -283,8 +287,13 @@ class Database
         }
 
         if ( is_null( self::$connection ) ) {
-            self::$connection = Connection::getConnection( self::$options );
-            self::$instance->conn = self::$connection;
+            try {
+                self::$connection = Connection::getConnection( self::$options );
+                self::$instance->conn = self::$connection;
+            } catch ( \Exception $e ) {
+                throw new \Exception('Database does not exists');
+            }
+
         }
 
         if ( !is_a( self::$instance->conn, 'PDO' )) {
@@ -297,6 +306,42 @@ class Database
         if ( is_null( self::$instance ) ) return false;
 
         return self::$instance->conn;
+    }
+    
+    public static function getConnection()
+    {
+        return self::$instance->conn;
+    }
+
+    public static function getOptions()
+    {
+        return self::$options;
+    }
+    
+    public function isConnected()
+    {
+        if ( is_null( self::$instance ) ) return false;
+
+        if ( is_null( self::$connection ) ) return false;
+
+        if ( self::$instance->conn ) return true;
+
+        return false;
+    }
+
+    public static function getCollates()
+    {
+        return self::COLLATES;
+    }
+
+    /**
+     * Fetch extended error information associated with the last operation on the database handle
+     * 
+     * Check out: https://www.php.net/manual/en/pdo.errorinfo.php
+     */
+    public function errorInfo(): array
+    {
+        return self::$instance->conn->errorInfo();
     }
 
     /**
@@ -320,12 +365,12 @@ class Database
      * 
      * Check out: https://www.php.net/manual/en/pdo.query.php
      */
-    public static function query( $sql, $mode = 1 ): PDOStatement
+    public static function query( $sql, $mode = self::FETCH_ASSOCIATIVE ): PDOStatement
     {
         self::connect( self::$options );
 
         if ( self::$instance->conn ) {
-            if ( $mode == 1 ) {
+            if ( $mode == self::FETCH_ASSOCIATIVE ) {
                 $statement = self::$instance->conn->query( $sql, PDO::FETCH_ASSOC );
             } else {
                 $statement = self::$instance->conn->query( $sql, PDO::FETCH_NAMED ); // PDO::FETCH_NUM
@@ -335,6 +380,69 @@ class Database
             throw new \Exception('Error on connecting to database.');
         }
     }
+
+    /**
+     * Prepares a statement for execution and returns a statement object
+     * 
+     * Check out: https://www.php.net/manual/en/pdo.prepare.php
+     */
+    public static function prepare( $sql )
+    {
+        self::connect( self::$options );
+
+        return self::$instance->conn->prepare( $sql );
+    }
+    
+    public function setAttribute( $attribute, $value )
+    {
+        self::connect( self::$options );
+
+        self::$instance->conn->setAttribute( $attribute, $value );
+    }
+
+    public static function fetchAll( $sql, $class = '' )
+    {
+        $sth = self::prepare( $sql );
+        $sth->execute();
+
+        if ( empty( $class ) ) {
+            return $sth->fetchAll( PDO::FETCH_ASSOC);
+        } else {
+            return $sth->fetchAll( PDO::FETCH_CLASS, $class );
+        }
+    }
+
+    public static function fetch( $sql, $class = '' )
+    {
+        $sth = self::prepare( $sql );
+        $sth->execute();
+
+        if ( empty( $class ) ) {
+            return $sth->fetch( PDO::FETCH_ASSOC);
+        } else {
+            $sth->setFetchMode( PDO::FETCH_CLASS, $class );
+            return $sth->fetch( PDO::FETCH_CLASS );
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public static function execute( $prepare, $values )
     {
@@ -348,16 +456,6 @@ class Database
         if ( self::$instance->conn ) {
             $statement = self::$instance->conn->prepare( $prepare );
             return $statement->execute( array_values( $mapped_values ) );
-        }
-    }
-
-    public static function fetch( $statement, $class = '' )
-    {
-        if ( empty( $class ) ) {
-            return $statement->fetch( PDO::FETCH_ASSOC );
-        } else {
-            $statement->setFetchMode( PDO::FETCH_CLASS, $class );
-            return $statement->fetch( PDO::FETCH_CLASS );
         }
     }
 
@@ -383,57 +481,6 @@ class Database
         }
     }
 
-    public static function fetchAll( $sql, $class = '' )
-    {
-        self::connect( self::$options );
-        $db = self::getInstance();
-
-        if ( self::$instance->conn ) {
-            $statement = self::$instance->conn->prepare( $sql );
-            $statement->execute();
-        } else {
-            throw new \Exception('Error on executing query.');
-        }
-
-        if ( $statement ) {
-            if ( empty( $class ) ) {
-                return $statement->fetchAll( PDO::FETCH_ASSOC );
-            } else {
-                return $statement->fetchAll( PDO::FETCH_CLASS, $class );
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Fetch extended error information associated with the last operation on the database handle
-     */
-    public function errorInfo(): array
-    {
-        return self::$instance->conn->errorInfo();
-    }
-
-    public static function getConnection()
-    {
-        return self::$instance->conn;
-    }
-
-    public static function getOptions()
-    {
-        return self::$options;
-    }
-    
-    public function isConnected()
-    {
-        if ( is_null( self::$instance ) ) return false;
-
-        if ( is_null( self::$connection ) ) return false;
-
-        if ( self::$instance->conn ) return true;
-
-        return false;
-    }
-
     public function lastInsertId()
     {
         if ( !$this->isConnected() ) return false;
@@ -455,11 +502,6 @@ class Database
         $stmt = self::query( $sql );
 
         return $stmt->fetchAll();
-    }
-
-    public static function getCollates()
-    {
-        return self::COLLATES;
     }
 
     public static function getCollateGroup( $collate )
