@@ -408,10 +408,8 @@ class Model
     public function manyToMany( $model, $related_column = NULL, $model_related_column = NULL, $link_table = NULL, $order = '' )
     {
         $current = $this->copy();
-        $model_class = get_class( $model );
-        $model = new $model_class;
 
-        $this_table = $current->getTable();
+        $this_table = $this->getTable();
         $model_table = $model->getTable();
 
         if ( is_null( $link_table ) ) {
@@ -432,9 +430,8 @@ class Model
             $model_related_column = $model::columnRelated( $model->getTable() );
         }
 
-        $columnsRaw = "`" . $model->getTable() . "`.*";
         $this->_sql = new Sql( $model->getTable() );
-        $sql = $this->_sql->select( $columnsRaw )->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
+        $sql = $this->_sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
 
         if ( empty( $order ) ) {
             $select = $this->_sql->get();
@@ -442,7 +439,8 @@ class Model
             $select = $this->_sql->order( $order )->get();
         }
 
-        return $model->fetchAll( $select );
+        $class = get_class( $model );
+        return $class::fetchAll( $select );
     }
 
     public static function prepare( $sql )

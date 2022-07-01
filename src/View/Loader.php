@@ -111,7 +111,7 @@ class Loader
         }
         $filename = $this->filename( $template_file, $path );
         if ( !file_exists( $filename ) ) {
-            throw new \Exception('Ficheiro ' . $filename . ' n„o existe.');
+            throw new \Exception('Ficheiro ' . $filename . ' n√£o existe.');
             exit;
         }
         $content = file_get_contents( $filename );
