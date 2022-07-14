@@ -327,8 +327,10 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
+        $target_data = $model->getTable() . '.*';
+
         $this->_sql = new Sql( $model->getTable() );
-        $select = $this->_sql->select()->where( $related_column, $current->id() )->get();
+        $select = $this->_sql->select( $target_data )->where( $related_column, $current->id() )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -346,8 +348,10 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
+        $target_data = $model->getTable() . '.*';
+
         $this->_sql = new Sql( $model->getTable() );
-        $select = $this->_sql->select()->where( $model->getId() , $current->{$related_column} )->get();
+        $select = $this->_sql->select( $target_data )->where( $model->getId() , $current->{$related_column} )->get();
 
         // return self::fetch( $select );
         $class = get_class( $model );
@@ -365,8 +369,10 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
+        $target_data = $model->getTable() . '.*';
+
         $this->_sql = new Sql( $model->getTable() );
-        $sql = $this->_sql->select()->where( $related_column, $current->id() );
+        $sql = $this->_sql->select( $target_data )->where( $related_column, $current->id() );
 
         if ( empty( $order ) ) {
             $select = $this->_sql->get();
@@ -391,8 +397,10 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
+        $target_data = $model->getTable() . '.*';
+
         $this->_sql = new Sql( $model->getTable() );
-        $sql = $this->_sql->select()->where( $model->getId() , $current->{$related_column} );
+        $sql = $this->_sql->select( $target_data )->where( $model->getId() , $current->{$related_column} );
 
         if ( empty( $order ) ) {
             $select = $this->_sql->get();
@@ -430,8 +438,10 @@ class Model
             $model_related_column = $model::columnRelated( $model->getTable() );
         }
 
+        $target_data = $model->getTable() . '.*';
+
         $this->_sql = new Sql( $model->getTable() );
-        $sql = $this->_sql->select()->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
+        $sql = $this->_sql->select( $target_data )->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
 
         if ( empty( $order ) ) {
             $select = $this->_sql->get();
