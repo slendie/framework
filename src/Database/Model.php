@@ -259,6 +259,7 @@ class Model
         try {
             return self::$_dbh->fetchAll( $sql, get_called_class() );
         } catch (\Exception $e) {
+            echo $e->getMessage() . "<br>\n";
             debug_print_backtrace();
             dd( $sql );
         }
@@ -269,6 +270,7 @@ class Model
         try {
             return self::$_dbh->fetch( $sql, get_called_class() );
         } catch (\Exception $e) {
+            echo $e->getMessage() . "<br>\n";
             debug_print_backtrace();
             dd( $sql );
         }
@@ -279,6 +281,7 @@ class Model
         try {
             return self::$_dbh->fetch( $sql );
         } catch (\Exception $e) {
+            echo $e->getMessage() . "<br>\n";
             debug_print_backtrace();
             dd( $sql );
         }
@@ -313,7 +316,14 @@ class Model
     public function exec( $sql, $data )
     {
         $dbh = self::prepare( $sql );
-        return $dbh->execute( $data );
+        try {
+            $res = $dbh->execute( $data );
+        } catch( \Exception $e ) {
+            echo $e->getMessage() . "<br>\n";
+            debug_print_backtrace();
+            dd( $sql );
+        }
+        return $res;
     }
 
     /**
@@ -327,7 +337,7 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
-        $target_data = $model->getTable() . '.*';
+        $target_data = "`" . $model->getTable() . '`.*';
 
         $this->_sql = new Sql( $model->getTable() );
         $select = $this->_sql->select( $target_data )->where( $related_column, $current->id() )->get();
@@ -348,7 +358,7 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
-        $target_data = $model->getTable() . '.*';
+        $target_data = "`" . $model->getTable() . '`.*';
 
         $this->_sql = new Sql( $model->getTable() );
         $select = $this->_sql->select( $target_data )->where( $model->getId() , $current->{$related_column} )->get();
@@ -369,7 +379,7 @@ class Model
             $related_column = self::columnRelated( $current->getTable() );
         }
 
-        $target_data = $model->getTable() . '.*';
+        $target_data = "`" . $model->getTable() . '`.*';
 
         $this->_sql = new Sql( $model->getTable() );
         $sql = $this->_sql->select( $target_data )->where( $related_column, $current->id() );
@@ -397,7 +407,7 @@ class Model
             $related_column = self::columnRelated( $model->getTable() );
         }
 
-        $target_data = $model->getTable() . '.*';
+        $target_data = "`" . $model->getTable() . '`.*';
 
         $this->_sql = new Sql( $model->getTable() );
         $sql = $this->_sql->select( $target_data )->where( $model->getId() , $current->{$related_column} );
@@ -438,7 +448,7 @@ class Model
             $model_related_column = $model::columnRelated( $model->getTable() );
         }
 
-        $target_data = $model->getTable() . '.*';
+        $target_data = "`" . $model->getTable() . '`.*';
 
         $this->_sql = new Sql( $model->getTable() );
         $sql = $this->_sql->select( $target_data )->join( $table, [ $model->getColumnName('id') => $model_related_column ] )->join( $this_table, [ $this->getColumnName('id') => $related_column ])->where( $this->getColumnName('id'), $this->id );
@@ -458,6 +468,7 @@ class Model
         try {
             return self::$_dbh->prepare( $sql );
         } catch (\Exception $e) {
+            echo $e->getMessage() . "<br>\n";
             debug_print_backtrace();
             dd( $sql );
         }
