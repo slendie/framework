@@ -223,11 +223,6 @@ class Model
         return $this->_id;
     }
 
-    public function get()
-    {
-        return $this->fetchAll( $this->_sql );
-    }
-
     public function id()
     {
         return $this->{$this->_id};
@@ -592,6 +587,11 @@ class Model
 
             return $this;
         }
+    }
+
+    public function get()
+    {
+        return $this->fetchAll( $this->_sql->get() );
     }
 
     public function lastSql()
