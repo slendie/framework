@@ -223,6 +223,11 @@ class Model
         return $this->_id;
     }
 
+    public function get()
+    {
+        return $this->fetchAll( $this->_sql );
+    }
+
     public function id()
     {
         return $this->{$this->_id};
@@ -562,9 +567,9 @@ class Model
             $model->_sql = new Sql( $model->getTable() );
             $model->_sql->where( $column, $value );
 
-            return $model->_sql;
+            return $model;
         } else {
-            $this->where( $column, $value );
+            $this->_sql->where( $column, $value );
 
             return $this;
         }

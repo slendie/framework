@@ -49,6 +49,7 @@ class Auth
         $user = User::where('email', $email)->select()->get();
 
         if ( $user ) {
+            dd( $user );
             if ( password_verify( $password, $user->password ) ) {
                 self::setUser( $user );
                 return true;
