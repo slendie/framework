@@ -582,7 +582,7 @@ class Model
 
             return $model;
         } else {
-            $this->_sql->where( $column, $value );
+            $this->_sql = $this->_sql->where( $column, $value );
 
             return $this;
         }
@@ -601,7 +601,7 @@ class Model
 
             return $model;
         } else {
-            $this->_sql->select( $clause );
+            $this->_sql = $this->_sql->select( $clause );
 
             return $this;
         }
@@ -620,7 +620,7 @@ class Model
     public function get()
     {
         if ( $this->soft_deletes ) {
-            $this->_sql->where('deleted_at', null);
+            $this->_sql = $this->_sql->where('deleted_at', null);
         }
 
         return $this->fetchAll( $this->_sql->get() );
