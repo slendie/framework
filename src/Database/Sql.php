@@ -73,6 +73,7 @@ class Sql
         }
 
         $this->where .= self::encapsulate( $column );
+
         $this->where .= " {$operand} ";
 
         if ( $this->is_prepare_mode ) {
@@ -144,11 +145,12 @@ class Sql
         } else if ( !empty( $value ) && !is_null( $value ) ) {
             return $value;
 
-        } else if ( empty( $value ) ) {
+        } else if ( is_null( $value ) ) {
+            return "NULL";
+
+        } else {
             return "''";
             
-        } else {
-            return "NULL";
         }
     }
 
@@ -302,6 +304,12 @@ class Sql
     public function whereOrNot( $column, $value, $operand = '=' )
     {
         $this->buildWhere( $column, $value, $operand, 'OR', true);
+        return $this;
+    }
+
+    public function whereNull( $column )
+    {
+        $this->buildWhere( $column, NULL, 'IS', 'AND');
         return $this;
     }
 

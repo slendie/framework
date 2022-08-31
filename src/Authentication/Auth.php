@@ -46,13 +46,14 @@ class Auth
 
     public static function authenticate( $email, $password )
     {
-        $user = User::where('email', $email)->select()->get();
+        $user = User::where('email', $email)->select()->first();
 
         if ( $user ) {
-            dd( $user );
             if ( password_verify( $password, $user->password ) ) {
                 self::setUser( $user );
                 return true;
+            } else {
+                return false;
             }
         }
 

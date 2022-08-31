@@ -295,7 +295,13 @@ class Model
         $model = new $class;
 
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select( $columns )->get();
+        $sql = $sql->select( $columns );
+
+        if ( $model->soft_deletes ) {
+            $sql->whereNull('deleted_at');
+        }
+
+        $select = $sql->get();
 
         return self::fetchAll( $select );
     }
@@ -480,7 +486,12 @@ class Model
         $class = get_called_class();
         $model = new $class;
         $sql = new Sql( $model->getTable() );
-        $select = $sql->select('COUNT(*) as n_rows')->get();
+        $sql = $sql->select('COUNT(*) as n_rows');
+
+        if ( $model->soft_deletes ) {
+            $sql->whereNull('deleted_at');
+        }
+        $select = $sql->get();
 
         $row = $model->fetch( $select );
 
@@ -524,7 +535,8 @@ class Model
             $data = [
                 'deleted_at'    => date('Y-m-d H:i:s'),
             ];
-            return $this->update( $data );
+            $res = $this->update( $data );
+            return $res;
         } else {
             $this->_sql = new Sql( $this->getTable() );
             $this->_sql->setPrepareMode();
@@ -538,6 +550,12 @@ class Model
     {
         $data = $this->toArray();
 
+        if ( $this->soft_deletes ) {
+            if ( !array_key_exists( 'deleted_at', $data ) ) {
+                $data['deleted_at'] = NULL;
+            }
+        }
+        
         if ( array_key_exists( $this->_id, $data ) ) {
             unset( $data[ $this->_id ] );
             return $this->update( $data );
@@ -589,8 +607,22 @@ class Model
         }
     }
 
+    public function first()
+    {
+        $rows = $this->get();
+        if ( $rows ) {
+            return $rows[0];
+        } else {
+            return false;
+        }
+    }
+
     public function get()
     {
+        if ( $this->soft_deletes ) {
+            $this->_sql->where('deleted_at', null);
+        }
+
         return $this->fetchAll( $this->_sql->get() );
     }
 
