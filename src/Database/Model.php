@@ -597,7 +597,7 @@ class Model
             $model = new $class;
     
             $model->_sql = new Sql( $model->getTable() );
-            $model->_sql->select( $clause );
+            $model->_sql = $model->_sql->select( $clause );
 
             return $model;
         } else {
