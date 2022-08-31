@@ -553,13 +553,21 @@ class Model
 
     public static function where( $column, $value )
     {
-        $class = get_called_class();
-        $model = new $class;
+        $static = !(isset($this) && $this instanceof self);
 
-        $model->_sql = new Sql( $model->getTable() );
-        $model->_sql->select()->where( $column, $value );
+        if ( $static ) {
+            $class = get_called_class();
+            $model = new $class;
+    
+            $model->_sql = new Sql( $model->getTable() );
+            $model->_sql->where( $column, $value );
 
-        return $model;
+            return $model->_sql;
+        } else {
+            $this->where( $column, $value );
+
+            return $this;
+        }
     }
 
     public function lastSql()
