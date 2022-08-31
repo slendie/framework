@@ -577,9 +577,21 @@ class Model
 
     public static function select( $clause = '*' )
     {
-        $this->_sql->select( $clause );
-        
-        return $this;
+        $static = !(isset($this) && $this instanceof self);
+
+        if ( $static ) {
+            $class = get_called_class();
+            $model = new $class;
+    
+            $model->_sql = new Sql( $model->getTable() );
+            $model->_sql->select( $clause );
+
+            return $model;
+        } else {
+            $this->_sql->select( $clause );
+
+            return $this;
+        }
     }
 
     public function lastSql()
