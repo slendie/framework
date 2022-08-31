@@ -575,6 +575,13 @@ class Model
         }
     }
 
+    public static function select( $clause = '*' )
+    {
+        $this->_sql->select( $clause );
+        
+        return $this;
+    }
+
     public function lastSql()
     {
         return $this->_sql->get();
