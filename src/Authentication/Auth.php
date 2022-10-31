@@ -60,6 +60,19 @@ class Auth
         return false;
     }
 
+    public static function userExists( $email )
+    {
+        $user = User::where('email', $email)->select()->first();
+
+        if ( $user ) {
+            dd( 'EXISTS', $user, $email );
+            return true;
+        } else {
+            dd( 'NOT EXISTS', $user, $email );
+            return false;
+        }
+    }
+
     private static function setUser( $user )
     {
         Session::set('logged_user', $user->id );

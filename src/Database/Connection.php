@@ -1,46 +1,70 @@
 <?php
 namespace Slendie\Framework\Database;
 
-use Slendie\Framework\Environment\Env;
-
 use PDO;
 use PDOException;
 
 class Connection
 {
-    private static $connection;
-    private static $options = [];
+    #region Attributes
+    private static $instance = null;
+    private $conn = null;
+    private $options = [];
+    #endregion
 
     /* Singleton */
     private function __construct() {
     }
 
-    public static function setOptions( $options ) 
+    public static function getInstance() {
+        if (self::$instance == null) {
+            self::$instance = new Connection();
+        }
+        return self::$instance;
+    }
+
+    public function setOptions( $options ) 
     {
-        self::$options = $options;
+        $this->options = $options;
     }
 
     public function __clone() {}
 
     public function __wakeup() {}
 
-    public static function connect(): PDO|bool
+    public function connect()
     {
-        if ( count( self::$options ) == 0 ) return false;
+        if ( is_null( $this->conn ) ) {
+            $this->conn = $this->getPdoConnection();
 
-        $driver     = self::$options['driver'] ?? "mysql";
-        $server     = self::$options['server'] ?? "localhost";
-        $port       = self::$options['port'] ?? NULL;
-        $user       = self::$options['user'] ?? NULL;
-        $pass       = self::$options['password'] ?? NULL;
-        $dbname     = self::$options['dbname'] ?? NULL;
-        $root       = Env::getBase();
+            if ( $this->conn ) {
+                $this->conn->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
+            } else {
+                throw new \Exception('Cannot connect to database.');
+                die();
+            }
+        }
+    }
+
+    public function getPdoConnection()
+    {
+        if ( count( $this->options ) == 0 ) return false;
+
+        $driver     = $this->options['DRIVER'] ?? "mysql";
+        $server     = $this->options['SERVER'] ?? "localhost";
+        $port       = $this->options['PORT'] ?? NULL;
+        $user       = $this->options['USER'] ?? NULL;
+        $pass       = $this->options['PASSWORD'] ?? NULL;
+        $dbname     = $this->options['DBNAME'] ?? NULL;
+        $root       = SITE_FOLDER;
 
         if ( empty($driver) ) {
             throw new \Exception('Database driver is missing.');
+            die();
         }
         if ( empty($dbname) ) {
             throw new \Exception('Database name is missing.');
+            die();
         }
 
         switch ( strtoupper( $driver ) ) {
@@ -84,37 +108,10 @@ class Connection
         }
     }
 
-    public static function getConnection( $options = [] ): PDO
+    #region PDO Methods
+    public function __call( $method, $arguments )
     {
-        if ( is_null( $options ) ) {
-            $options = self::$options;
-        } elseif ( count( $options ) == 0 ) {
-            $options = self::$options;
-        }
-
-        if ( is_null(self::$connection) ) {
-            self::setOptions( $options );
-
-            self::$connection = self::connect();
-            // self::$connection->exec("set names utf8");
-
-            if ( self::$connection ) {
-                self::$connection->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-            } else {
-                throw new \Exception('Cannot connect to database.');
-            }
-            
-        }
-        return self::$connection;
+        return call_user_func_array( [$this->conn, $method], $arguments );
     }
-
-    public static function get( $attr )
-    {
-        if ( count( self::$options ) == 0 ) return null;
-
-        if ( !array_key_exists( $attr, self::$options ) ) return null;
-        
-        return self::$options[ $attr ];
-    }
-
+    #endregion
 }

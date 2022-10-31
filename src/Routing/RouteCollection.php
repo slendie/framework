@@ -63,7 +63,7 @@ class RouteCollection
                 return self::getByIndex( $method, $key );
             }
         }
-        return false;
+        throw new \Exception("Method {$method} cannot be found with {$pattern}.");
     }
 
     /**
@@ -76,7 +76,7 @@ class RouteCollection
 
             return self::getByIndex( $index['method'], $index['pattern'] );
         }
-        return false;
+        throw new \Exception("Route {$name} cannot be found.");
     }
 
     /**
@@ -92,7 +92,7 @@ class RouteCollection
             self::addName( $method, $pattern, $name );
             return true;
         } else {
-            throw new \Exception('Rota {$pattern} com método {$method} não definida.');
+            throw new \Exception("Route {$pattern} with method {$method} not defined.");
         }
     }
 

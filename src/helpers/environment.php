@@ -1,10 +1,12 @@
 <?php
-use Slendie\Framework\Environment\Env;
+use Slendie\Framework\Environment\Environment;
 
 if ( !function_exists('env') ) {
     function env( $parameter ) {
-        return Env::get( $parameter );
+        $env = Environment::getInstance();
+        $env->load();
+        return $env->get( $parameter );
     }
 } else  {
-    die('Function env exists.');
+    die('Function env already exists.');
 }
