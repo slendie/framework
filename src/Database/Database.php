@@ -32,7 +32,7 @@ class Database
     }
 
     #region Prepared SQL
-    public function fetchAll( $sql, $class = '', $values = [])
+    public function selectAllPreparedSql( $sql, $class = '', $values = [])
     {
         $sttm = $this->conn->prepare( $sql );
         $sttm->execute( $values );
@@ -44,7 +44,7 @@ class Database
         }
     }
 
-    public function fetch( $sql, $class = '', $values = [] )
+    public function selectPreparedSql( $sql, $class = '', $values = [] )
     {
         $sttm = $this->conn->prepare( $sql );
         $sttm->execute( $values );
@@ -54,6 +54,12 @@ class Database
         } else {
             return $sttm->fetch( PDO::FETCH_CLASS, $class );
         }
+    }
+
+    public function execPreparedSql( $sql, $values = [] )
+    {
+        $sttm = $this->conn->prepare( $sql );
+        return $sttm->execute( $values );
     }
 
     public function __call( $method, $arguments )
