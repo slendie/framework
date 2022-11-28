@@ -16,6 +16,8 @@ class Sql
     private $offset = null;
     private $join = null;
     private $union = null;
+    private $model = null;
+    private $binds = [];
     private $is_opened = false;
     private $is_suppress_logic = false;
 
@@ -35,6 +37,54 @@ class Sql
         $this->alias = $alias;
     }
 
+    public function model( $model )
+    {
+        $this->model = $model;
+    }
+
+    public function bind( $column, $value = null )
+    {
+        if ( is_array( $column ) ) {
+            foreach( $column as $key => $value ) {
+                $this->binds[$key] = $value;
+            }
+        } else {
+            $this->binds[$column] = $value;
+        }
+        return $this;
+    }
+
+    private static function column( $column )
+    {
+        if ( strpos($column, '.') !== false ) {
+            $parts = explode('.', $column);
+            $final_column = "`{$parts[0]}`.`{$parts[1]}`";
+        } else {
+            if ( $column == '*' ) {
+                $final_column = '*';
+            } else {
+                $final_column = "`{$column}`";
+            }
+        }
+
+        return $final_column;
+    }
+
+    private static function value( $value )
+    {
+        if ( strpos( $value, '`') == 1 ) {
+            $final_value = substr( $value, 1, -1 );
+        } else {
+            if ( is_numeric( $value ) ) {
+                $final_value = $value;
+            } else {
+                $final_value = "'" . addslashes( $value ) . "'";
+            }
+        }
+
+        return $final_value;
+    }
+
     public function insert( $columns )
     {
         if ( !is_array( $columns ) ) {
@@ -49,7 +99,7 @@ class Sql
                 $sets .= ', ';
                 $values .= ', ';
             }
-            $sets .= "`{$column}`";
+            $sets .= self::column( $column );
             $values .= "?";
         }
         $this->insert .= " ({$sets}) VALUES ({$values})";
@@ -67,14 +117,21 @@ class Sql
             if ( !empty( $columns ) ) {
                 $columns .= ', ';
             }
-            if ( $column != '*' ) {
-                $columns .= "`{$column}`";
-            } else {
-                $columns .= $column;
-            }
+            $columns .= self::column( $column );
         }
 
         $this->select = "SELECT {$columns} FROM `{$this->table}`";
+
+        if ( !is_null( $this->alias ) ) {
+            $this->select .= " AS `{$this->alias}`";
+        }
+
+        return $this;
+    }
+
+    public function count()
+    {
+        $this->select = "SELECT COUNT(*) FROM `{$this->table}`";
 
         if ( !is_null( $this->alias ) ) {
             $this->select .= " AS `{$this->alias}`";
@@ -95,7 +152,7 @@ class Sql
             if ( !empty( $sets ) ) {
                 $sets .= ', ';
             }
-            $sets .= "`{$column}` = ?";
+            $sets .= self::column( $column) . " = ?";
         }
         $this->update .= $sets;
 
@@ -119,13 +176,9 @@ class Sql
             $this->is_suppress_logic = false;
         }
         if ( is_null( $value ) ) {
-            $this->where .= "`{$column}` {$operator} :{$column}";
+            $this->where .= self::column( $column ) . " {$operator} :{$column}";
         } else {
-            if ( is_numeric( $value ) ) {
-                $this->where .= "`{$column}` {$operator} {$value}";
-            } else {
-                $this->where .= "`{$column}` {$operator} '{$value}'";
-            }
+            $this->where .= self::column( $column ) . " {$operator} " . self::value( $value );
         }
 
         return $this;
@@ -169,7 +222,7 @@ class Sql
         if ( is_array( $group ) ) {
             $groupmant = '';
             foreach( $group as $column ) {
-                $groupmant .= "`{$column}`, ";
+                $groupmant .= self::column( $column ) . ", ";
             }
         } else {
             $groupmant = "`{$group}`";
@@ -183,7 +236,7 @@ class Sql
         if ( is_array( $order ) ) {
             $ordermant = '';
             foreach( $order as $column ) {
-                $ordermant .= "`{$column}` {$direction}, ";
+                $ordermant .= self::column( $column ) . " {$direction}, ";
             }
         } else {
             $ordermant = "`{$order}` $direction";
@@ -206,19 +259,33 @@ class Sql
 
     public function union( $sql )
     {
-        $this->union = " UNION {$sql}";
+        $this->union = "UNION {$sql}";
         return $this;
     }
 
-    public function join( $table, $on, $join = 'JOIN', $alias = null, $operator = '=' )
+    public function join( $table, $on, $join = 'JOIN', $alias = null )
     {
         $this->join = "{$join} `{$table}`";
         if ( !is_null( $alias ) ) {
             $this->join .= " AS `{$alias}`";
         }
-        foreach( $on as $key => $value ) {
-            $this->join .= " ON `{$key}` {$operator} `{$value}`";
+        $on_condition = '';
+        foreach( $on as $joined ) {
+            if ( count( $joined ) == 2 ) {
+                list($column1, $column2) = $joined;
+                $operator  = '=';
+            } else {
+                list($column1, $column2, $operator) = $joined;
+            }
+
+            if ( empty( $on_condition ) ) {
+                $on_condition = " ON ";
+            } else {
+                $on_condition .= " AND ";
+            }
+            $on_condition .= self::column( $column1 ) . " {$operator} " . self::column( $column2 );
         }
+        $this->join .= $on_condition;
         return $this;
     }
 
@@ -227,6 +294,9 @@ class Sql
         $sql = '';
 
         /* STATEMENT */
+        if ( empty( $this->insert ) && empty( $this->select ) && empty( $this->update ) && empty( $this->delete ) ) {
+            $this->select();
+        }
 
         if ( !is_null( $this->insert ) ) {
             $sql .= "{$this->insert} ";
@@ -240,12 +310,6 @@ class Sql
         } elseif ( !is_null( $this->delete ) ) {
             $sql .= "{$this->delete} ";
 
-        }
-
-        /* UNION */
-
-        if ( !is_null( $this->union ) ) {
-            $sql .= "{$this->union} ";
         }
 
         /* JOIN */
@@ -283,6 +347,26 @@ class Sql
             $sql .= "{$this->offset} ";
         }
 
-        return trim( $sql );
+        /* UNION */
+
+        if ( !is_null( $this->union ) ) {
+            $sql .= "{$this->union} ";
+        }
+
+        if ( is_null( $this->model ) ) {
+            return trim( $sql );
+        } else {
+            $this->model->setSql( $this );
+            return $this->model->get();
+        }
+    }
+
+    public function __call( $name, $arguments )
+    {
+        if ( is_null( $this->model ) ) {
+            throw new \Exception( "Call to undefined method " . __CLASS__ . "::{$name}()" );
+        }
+
+        return $this->model->$name( ...$arguments );
     }
 }

@@ -39,7 +39,7 @@ class Environment
         return self::$env_file;
     }
 
-    public static function load()
+    public static function load( $force = false )
     {
         if ( !is_readable( self::$env_file ) ) {
             throw new \Exception('Environment file ' . self::$env_file . ' is not readable.');
@@ -102,12 +102,17 @@ class Environment
 
             $composed_key = ( empty( $section ) ? $key : $section . '.' . $key );
 
-            if ( !array_key_exists($composed_key, $_SERVER) && !array_key_exists($composed_key, $_ENV) ) {
+            if ( $force || ( !array_key_exists($composed_key, $_SERVER) && !array_key_exists($composed_key, $_ENV) ) ) {
                 putenv( $composed_key . '=' . $value );
                 $_ENV[$composed_key] = $value;
                 $_SERVER[$composed_key] = $value;
             }   
         }
+    }
+
+    public static function forceLoad()
+    {
+        self::load( true );
     }
 
     public function get( $key )

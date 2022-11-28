@@ -8,7 +8,9 @@ use Slendie\Framework\Database\Connection;
 class Database 
 {
     private static $instance;
-    public $conn = null;
+    protected $conn = null;
+    protected $sth = null;
+    protected $attributes = [];
 
     private function __construct() { 
     }
@@ -31,35 +33,56 @@ class Database
         }
     }
 
+    public function getColumnsMeta()
+    {
+        $this->attributes = [];
+
+        $n_columns = $this->sth->columnCount();
+        for( $i = 0; $i < $n_columns; $i++ ) {
+            $column = $this->sth->getColumnMeta( $i );
+            $this->attributes[ $column['name'] ] = $column;
+        }
+
+        return $this->attributes;
+    }
+
+    public function getMeta( $name )
+    {
+        if ( count( $this->attributes ) == 0 ) {
+            $this->getColumnsMeta();
+        }
+        return $this->attributes[ $name ];
+    }
+
     #region Prepared SQL
     public function selectAllPreparedSql( $sql, $class = '', $values = [])
     {
-        $sttm = $this->conn->prepare( $sql );
-        $sttm->execute( $values );
+        $this->sth = $this->conn->prepare( $sql );
+        $this->sth->execute( $values );
 
         if ( empty( $class) ) {
-            return $sttm->fetchAll( PDO::FETCH_ASSOC );
+            return $this->sth->fetchAll( PDO::FETCH_ASSOC );
         } else {
-            return $sttm->fetchAll( PDO::FETCH_CLASS, $class );
+            return $this->sth->fetchAll( PDO::FETCH_CLASS, $class );
         }
     }
 
     public function selectPreparedSql( $sql, $class = '', $values = [] )
     {
-        $sttm = $this->conn->prepare( $sql );
-        $sttm->execute( $values );
+        $this->sth = $this->conn->prepare( $sql );
+        $this->sth->execute( $values );
 
         if ( empty( $class) ) {
-            return $sttm->fetch( PDO::FETCH_ASSOC );
+            return $this->sth->fetch( PDO::FETCH_ASSOC );
         } else {
-            return $sttm->fetch( PDO::FETCH_CLASS, $class );
+            return $this->sth->fetch( PDO::FETCH_CLASS, $class );
         }
     }
 
     public function execPreparedSql( $sql, $values = [] )
     {
-        $sttm = $this->conn->prepare( $sql );
-        return $sttm->execute( $values );
+        $this->sth = $this->conn->prepare( $sql );
+        return $this->sth->execute( $values );
     }
 
     public function __call( $method, $arguments )
