@@ -10,9 +10,18 @@ final class LoaderTest extends TestCase
         $loader = new Loader();
 
         $path = $loader->getBasePath();
-        $expected = str_replace('\\', \DIRECTORY_SEPARATOR, dirname( __DIR__, 2 ) . '/resources/views/');
-        $expected = str_replace('/', \DIRECTORY_SEPARATOR, $expected);
+        $expected = Loader::convertToPath( SITE_FOLDER . 'resources/views/' );
 
         $this->assertEquals( $path, $expected );
+    }
+
+    public function testCanDefineExtension()
+    {
+        $loader = new Loader();
+
+        $extension = $loader->getExtension();
+        $expected = 'tpl.php';
+
+        $this->assertEquals( $extension, $expected );
     }
 }
