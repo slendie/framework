@@ -24,28 +24,24 @@ class Loader
      * @param string $extension
      * @throws \Exception
      */
-    public function construct( string $path = null, $extension = null )
+    public function __construct( string $path = null, $extension = null )
     {
-        if ( is_null( $path ) ) {
-            $path = SITE_FOLDER . '/resources/views/';
-        }
-        if ( is_null( $extension ) ) {
-            echo "Loader::construct() - extension is null";
-            $extension = '.tpl.php';
-        }
-
         $this->setBasePath( $path );
-        $this->extension = $extension;
+        $this->setExtension( $extension );
     }
 
     public function setBasePath( string $path = null )
     {
         if ( empty( $path ) ) {
-            $path = SITE_FOLDER . '/resources/views/';
+            $path = SITE_FOLDER . env('VIEW')['VIEW_PATH'];
         }
 
-        $path = $this->convertToPath( $path );
+        $path = self::convertToPath( $path );
 
+        if ( substr( $path, -1) !== DIRECTORY_SEPARATOR ) {
+            $path .= DIRECTORY_SEPARATOR;
+        }
+        
         if ( ! $path || ! \is_dir( $path ) ) {
             throw new \Exception( "View path [{$path}] not found." );
         }
@@ -53,16 +49,26 @@ class Loader
         $this->path = $path;
     }
 
+    public function setExtension( $extension = null ) 
+    {
+        if ( empty( $extension ) ) {
+            $extension = env('VIEW')['VIEW_EXTENSION'];
+        }
+
+        $this->extension = $extension;
+    }
+
     public function getBasePath()
     {
         return $this->path;
     }
+
     public function getExtension()
     {
         return $this->extension;
     }
 
-    private function convertToPath( string $path )
+    public static function convertToPath( string $path )
     {
         $converted_path = str_replace('.', DIRECTORY_SEPARATOR, $path);
         $converted_path = str_replace('\\', DIRECTORY_SEPARATOR, $converted_path);

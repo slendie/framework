@@ -76,7 +76,7 @@ class EnvironmentTest extends TestCase
     {
         $database_name = env('DATABASE')['DBNAME'];
 
-        $expected = "C:\\Users\\lucia\\Source\\PHP\\slendie\\storage\\slendie.sqlite3";   // .env.testing
+        $expected = "storage\\slendie.sqlite3";   // .env.testing
 
         $this->assertEquals( $expected, $database_name );
     }
@@ -85,7 +85,7 @@ class EnvironmentTest extends TestCase
     {
         $database_name = getenv('DATABASE.DBNAME');
 
-        $expected = "C:\\Users\\lucia\\Source\\PHP\\slendie\\storage\\slendie.sqlite3";   // .env.testing
+        $expected = "storage\\slendie.sqlite3";   // .env.testing
 
         $this->assertEquals( $expected, $database_name );
     }

@@ -89,7 +89,12 @@ class Connection
             case 'SQLITE':
                 $file = $root . $dbname;
                 $dsn = "sqlite:{$file}";
-                return new PDO($dsn);
+                try {
+                    return new PDO($dsn);
+                } catch (PDOException $e) {
+                    throw new \Exception($e->getMessage() . "\nSQLite File: " . $file);
+                    die();
+                }
                 break;
 
             case 'OCI8':
