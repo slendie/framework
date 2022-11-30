@@ -5,10 +5,11 @@ namespace Slendie\Framework\Environment;
 class Environment
 {
     private static $instance = null;
-    private static $env_file = SITE_FOLDER . '.env';
+    private static $env_file = SITE_FOLDER . '/.env';
     private static $env = [];
 
-    private function __construct() {}
+    private function __construct() {
+    }
 
     public static function getInstance()
     {

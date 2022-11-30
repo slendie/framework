@@ -26,23 +26,25 @@ class Loader
      */
     public function construct( string $path = null, $extension = null )
     {
-        $this->setBasePath( $path );
-
-        if ( empty( $extension ) ) {
-            $extension = '.blade.php';
+        if ( is_null( $path ) ) {
+            $path = SITE_FOLDER . '/resources/views/';
         }
+        if ( is_null( $extension ) ) {
+            echo "Loader::construct() - extension is null";
+            $extension = '.tpl.php';
+        }
+
+        $this->setBasePath( $path );
         $this->extension = $extension;
     }
 
     public function setBasePath( string $path = null )
     {
         if ( empty( $path ) ) {
-            $path = dirname( __DIR__, 2 ) . '/resources/views/';
+            $path = SITE_FOLDER . '/resources/views/';
         }
-        echo "The path is {$path}" . PHP_EOL;
 
-        $real_path = \realpath( $path );
-        $path = $this->convertToPath( $real_path );
+        $path = $this->convertToPath( $path );
 
         if ( ! $path || ! \is_dir( $path ) ) {
             throw new \Exception( "View path [{$path}] not found." );
