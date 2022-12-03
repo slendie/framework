@@ -24,4 +24,48 @@ final class LoaderTest extends TestCase
 
         $this->assertEquals( $extension, $expected );
     }
+
+    public function testCanParseExtends()
+    {
+        $expected = <<<TPL
+<!DOCTYPE html>
+<body>
+    @yield('content')
+</body>
+</html>
+TPL;
+        $loader = new Loader('view', __DIR__ . '/views/', 'tpl.php');
+        $loader->parse();
+        $actual = $loader->getExtended();
+
+        $this->assertEquals( $actual, $expected );
+    }
+
+    public function testCanParseSections()
+    {
+        $expected = [
+            'content' => "This is the content\r\n",
+        ];
+        $loader = new Loader('view', __DIR__ . '/views/', 'tpl.php');
+        $loader->parse();
+        $actual = $loader->getSections();
+
+        $this->assertEquals( $actual, $expected );
+    }
+
+    public function testCanParseContent()
+    {
+        $expected = <<<TPL
+<!DOCTYPE html>
+<body>
+    This is the content
+</body>
+</html>
+TPL;
+        $loader = new Loader('view', __DIR__ . '/views/', 'tpl.php');
+        $loader->parse();
+        $content = $loader->getContent();
+
+        $this->assertEquals( $content, $expected );
+    }
 }
