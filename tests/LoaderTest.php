@@ -33,6 +33,7 @@ final class LoaderTest extends TestCase
     @yield('content')
 </body>
 </html>
+
 TPL;
         $loader = new Loader('view', __DIR__ . '/views/', 'tpl.php');
         $loader->parse();
@@ -53,6 +54,27 @@ TPL;
         $this->assertEquals( $actual, $expected );
     }
 
+    public function testCanParseInclude()
+    {
+        $expected = <<<TPL
+<!DOCTYPE html>
+<head>
+    <title>Test File</title>
+</head>
+<body>
+    This content contains header
+</body>
+</html>
+
+
+TPL;
+        $loader = new Loader('view_include', __DIR__ . '/views/', 'tpl.php');
+        $loader->parse();
+        $content = $loader->getContent();
+
+        $this->assertEquals( $content, $expected );
+    }
+
     public function testCanParseContent()
     {
         $expected = <<<TPL
@@ -61,6 +83,8 @@ TPL;
     This is the content
 </body>
 </html>
+
+
 TPL;
         $loader = new Loader('view', __DIR__ . '/views/', 'tpl.php');
         $loader->parse();

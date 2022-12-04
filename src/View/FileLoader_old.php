@@ -43,7 +43,7 @@ class FileLoader
         preg_match( $pattern, $this->doc, $matches );
 
         if ( count( $matches ) > 0 ) {
-            $template = new Template();
+            $template = new TemplateOld();
             $this->extends = $template->render( $matches[1] );
 
             $this->doc = str_replace( $matches[0], '', $this->doc );

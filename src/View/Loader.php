@@ -10,6 +10,7 @@ class Loader
     const EXTENDED_PATTERN = '/@extends\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)/';
     const SECTION_PATTERN = '/@section\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?[\s]*(.*?)@endsection(?:' . self::BREAK_LINE . ')?/s';
     const YIELD_PATTERN = '/@yield\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
+    const INCLUDE_PATTERN = '/@include\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
 
     /**
      * @param string $path
@@ -200,6 +201,9 @@ class Loader
 
         /* Parse the yield sections */
         $this->parseYield();
+
+        /* Parse includes */
+        $this->parseInclude();
     }
 
     /**
@@ -218,10 +222,8 @@ class Loader
 
             $this->extended = $extended->getContent();
 
-            /* Remove @extend directive from content */
-            // $this->content = str_replace( $matches[0], '', $this->content );
-
-            $this->content = $extended->getContent();
+            /* Replace @extend directive from content */
+            $this->content = str_replace( $matches[0], $this->extended, $this->content );
         }
     }
 
@@ -260,6 +262,27 @@ class Loader
                     $this->content = str_replace( $matches[0][$i], $this->sections[ $key ], $this->content);
                 }
             }
+        }
+    }
+
+    /**
+     * Include another view into this.
+     *
+     * @throws \Exception
+     */
+    private function parseInclude()
+    {
+        /* Check for layout extension */
+        preg_match( self::INCLUDE_PATTERN, $this->content, $matches );
+
+        if ( count( $matches ) > 0 ) {
+            $include = new Loader( $matches[1], $this->path, $this->extension );
+            $include->parse();
+
+            $content = $include->getContent();
+
+            /* Replace @include directive from content */
+            $this->content = str_replace( $matches[0], $content, $this->content );
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 namespace Slendie\Framework\View;
 
-class Template
+class TemplateOld
 {
     protected $loader;
 

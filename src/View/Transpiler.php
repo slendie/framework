@@ -5,6 +5,9 @@ namespace Slendie\Framework\View;
 class Transpiler
 {
     const ANY_CONDITION = '[^@]{1,}';
+    const ANY_ASSET = '[\w\-\.\/]{1,}';
+    const ANY_ROUTE = '[\w\-\.]{1,}';
+    const ANY_ROUTE_PARAM = '[^\)]*';
 
     const START_BLOCK = '/@{command}[\s]*\((' . self::ANY_CONDITION . ')\)/';
     const END_BLOCK = '/@{command}/';
@@ -15,6 +18,11 @@ class Transpiler
     const PHP_PATTERN = '/@php[\s]*\((' . self::ANY_CONDITION . ')\)/';
     const PHP_START_BLOCK_PATTERN = '/@php/';
     const PHP_END_BLOCK_PATTERN = '/@endphp/';
+
+    const ECHO_PATTERN = '/{{ (.+) }}/';
+
+    const ASSET_PATTERN = '/@asset\([\s]*\'(' . self::ANY_ASSET . ')\'[\s]*\)/';
+    const ROUTE_PATTERN = '/@route\([\s]*\'(' . self::ANY_ROUTE . ')\'[,\s]*(' . self::ANY_ROUTE_PARAM . ')\)/';
 
     protected $content = '';
 
@@ -44,6 +52,11 @@ class Transpiler
         $this->parsePhp();
         $this->parsePhpStartBlock();
         $this->parsePhpEndBlock();
+
+        $this->parseAsset();
+        $this->parseRoute();
+
+        $this->parseEcho();
     }
 
     public function parseStartBlock( $command )
@@ -151,7 +164,7 @@ class Transpiler
         preg_match_all( self::PHP_START_BLOCK_PATTERN, $this->content, $matches );
 
         foreach( $matches[0] as $i => $match) {
-            $transpiled = '<?php ';
+            $transpiled = '<?php';
             $this->content = str_replace( $match, $transpiled, $this->content );
         }
     }
@@ -167,7 +180,45 @@ class Transpiler
         }
     }
 
-    public function getContent()
+    public function parseEcho()
+    {
+        /* Check content */
+        preg_match_all( self::ECHO_PATTERN, $this->content, $matches );
+
+        foreach( $matches[0] as $i => $match) {
+            $transpiled = '<?php echo ' . $matches[1][$i] . '; ?>';
+            $this->content = str_replace( $match, $transpiled, $this->content );
+        }
+    }
+
+    public function parseAsset()
+    {
+        /* Check content */
+        preg_match_all( self::ASSET_PATTERN, $this->content, $matches );
+
+        foreach( $matches[0] as $i => $match) {
+            $transpiled = env('APP_URL') . '/' . $matches[1][$i];
+            $this->content = str_replace( $match, $transpiled, $this->content );
+        }
+    }
+
+    public function parseRoute()
+    {
+        /* Check content */
+        preg_match_all( self::ROUTE_PATTERN, $this->content, $matches );
+
+        foreach( $matches[0] as $i => $match) {
+            if ( !empty($matches[2][$i]) ) {
+                $params = eval( 'return ' . $matches[2][$i] . ';' );
+                $transpiled = route($matches[1][$i], $params );
+            } else {
+                $transpiled = route($matches[1][$i]);
+            }
+            $this->content = str_replace( $match, $transpiled, $this->content );
+        }
+    }
+
+   public function getContent()
     {
         return $this->content;
     }
