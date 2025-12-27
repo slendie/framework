@@ -1,0 +1,1 @@
+Name: {{ $name }}, Age: {{ $age }}

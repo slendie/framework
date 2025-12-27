@@ -1,0 +1,1 @@
+Errors: {{ json_encode($errors ?? []) }}

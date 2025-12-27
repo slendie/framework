@@ -1,0 +1,1 @@
+Name: {{ $name }}, Error: {{ $form_errors["email"] ?? "" }}, Success: {{ $form_success ?? "" }}
