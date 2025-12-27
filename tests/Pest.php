@@ -35,6 +35,8 @@ Env::set('DB_CONNECTION', 'sqlite');
 Env::set('DB_DATABASE', ':memory:');
 Env::set('TIMEZONE', 'UTC');
 
+date_default_timezone_set('UTC');
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
