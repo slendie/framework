@@ -1,7 +1,7 @@
 <?php
 namespace Slendie\Framework\View;
 
-class Flash
+class FlashOld
 {
     public static function setMessage( $message, $level = 'success' )
     {

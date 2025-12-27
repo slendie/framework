@@ -30,7 +30,7 @@ class Auth
 
     public static function user_id()
     {
-        return session('user-id');
+        return Session::get('logged_user');
     }
 
     public static function user()
@@ -46,21 +46,35 @@ class Auth
 
     public static function authenticate( $email, $password )
     {
-        $user = (new User())->where('email', $email)->select()->get();
+        $user = User::where('email', $email)->select()->first();
 
         if ( $user ) {
             if ( password_verify( $password, $user->password ) ) {
                 self::setUser( $user );
                 return true;
+            } else {
+                return false;
             }
         }
 
         return false;
     }
 
+    public static function userExists( $email )
+    {
+        $user = User::where('email', $email)->select()->first();
+
+        if ( $user ) {
+            dd( 'EXISTS', $user, $email );
+            return true;
+        } else {
+            dd( 'NOT EXISTS', $user, $email );
+            return false;
+        }
+    }
+
     private static function setUser( $user )
     {
-        Session::set('user-id', $user->id );
-        Session::set('user-name', $user->name );
+        Session::set('logged_user', $user->id );
     }
 }

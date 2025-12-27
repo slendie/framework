@@ -1,175 +1,132 @@
 <?php
+
 namespace Slendie\Framework\Environment;
 
 class Environment
 {
-    private static $instance = NULL;
-    private static $base = "";
-    private static $env_file = "";
+    private static $instance = null;
+    private static $env_file = SITE_FOLDER . '/.env';
     private static $env = [];
 
-    private function __construct() {}
+    private function __construct() {
+    }
 
-    private static function checkInstance( $env_file = NULL )
+    public static function getInstance()
     {
         if ( is_null(self::$instance) ) {
             self::$instance = new Environment();
-            self::setEnv( $env_file );
-
-            // Load data from file
-            self::$instance->load();
-
-            // Load aditional data
-            self::loadSettings();
         }
-    }
-
-    public static function getInstance( $env_file = NULL )
-    {
-        self::checkInstance($env_file);
 
         return self::$instance;
     }
 
-    private static function _getSiteFolder()
+    /**
+     * Set the environment file name
+     */
+    public static function setEnvFile( $env_file )
     {
-        $dir = explode( DIRECTORY_SEPARATOR, __DIR__ );
-        if ( count( $dir ) > 5 ) {
-            $path = implode( DIRECTORY_SEPARATOR, array_slice( $dir, 0, -5 )) . DIRECTORY_SEPARATOR;
-        } else {
-            throw \Exception(sprint('Cannot determine base path.'));
+        if ( !file_exists( $env_file ) ) {
+            throw new \Exception('Environment file ' . $env_file . ' does not exists.');
         }
-        return $path;
+
+        self::$env_file = $env_file;
     }
 
-    private static function _getPath( $filePath )
+    /**
+     * Get the environment file name
+     */
+    public function getFilename()
     {
-        $filePath = str_replace('/', DIRECTORY_SEPARATOR, $filePath);
-        $filePath = str_replace('\\', DIRECTORY_SEPARATOR, $filePath);
-        $parts = explode( DIRECTORY_SEPARATOR, $filePath );
-        $path = "";
-        for( $i = 0; $i < count($parts); $i++ ) {
-            if ( "" != $path ) {
-                $path .= DIRECTORY_SEPARATOR;
+        return self::$env_file;
+    }
+
+    public static function load( $force = false )
+    {
+        if ( !is_readable( self::$env_file ) ) {
+            throw new \Exception('Environment file ' . self::$env_file . ' is not readable.');
+        }
+
+        $section = '';
+        $lines = file( self::$env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+        foreach( $lines as $line ) {
+            $line = trim( $line );
+
+            /* Remove commented lines */
+            if ( strpos( $line, '#' ) === 0 ) {
+                continue;
             }
-            $path .= $parts[$i];
-        }
-        $path .= DIRECTORY_SEPARATOR;
 
-        return $path;
-    }
+            if ( strpos( $line, ' # ' ) !== false ) {
+                $line = substr( $line, 0, strpos( $line, ' # ' ) );
+            }
 
-    public static function setDefaultEnv() {
-        self::setBase( self::_getSiteFolder() );
-        self::$env_file = '.env';
-    }
+            /* Check if is a section */
+            $pattern = '/\[([\w]+)\]/';
+            preg_match( $pattern, $line, $matches);
 
-    public static function getBase()
-    {
-        if ( "" == self::$base ) {
-            self::$base = self::_getSiteFolder();
-        }
-        return self::$base;
-    }
+            if ( !is_null( $matches ) && count( $matches ) > 0 ) {
+                $section = strtoupper( $matches[1] );
+                continue;
+            }
 
-    public static function setBase( $site_folder )
-    {
-        self::$base = $site_folder;
-    }
+            /* Get parts */
+            $parts = explode( '=', $line );
+            if ( count( $parts ) == 0 ) {
+                throw new \Exception('Environment file ' . self::$env_file . ' line ' . $line . ' is not valid.');
+                die();
+            }
 
-    public static function getEnvFile()
-    {
-        return self::$base . self::$env_file;
-    }
+            if ( count( $parts ) == 1 ) {
+                $parts[1] = '';
+            }
+            $key = strtoupper( trim( $parts[0] ) );
+            $value = trim( $parts[1] );
 
-    public static function setEnv( $env_file = NULL )
-    {
-        if ( is_null( $env_file ) ) {
-            self::setDefaultEnv();
-            return;
-        } else {
-            self::$base = self::_getPath( $env_file );
-            self::$env_file = str_replace( self::$base, '', $env_file );
-        }
-    }
+            /* Handle double quotes */
+            $pattern = '/\"(.*)\"/';
+            preg_match( $pattern, $value, $matches);
 
-    private static function _checkEnv( $env_file )
-    {
-        if ( !is_null( $env_file ) ) {
-            self::setEnv( $env_file );
-        } else {
-            self::setDefaultEnv();
-        }
-    }
+            if ( !is_null( $matches ) ) {
+                if ( count( $matches ) > 0 ) {
+                    $value = $matches[1];
+                }
+            }
 
-    public static function load( $env_file = NULL )
-    {
-        self::_checkEnv( $env_file );
-
-        $file = self::getEnvFile();
-        if ( !file_exists($file) ) {
-            throw new \Exception(sprintf('File %s does not exists.', $file));
-        }
-
-        self::$env = parse_ini_file( $file, true );
-    }
-
-    public static function loadSettings()
-    {
-
-        // Load here other system default info
-        self::$env['base_dir'] = self::getBase();
-        self::$env['env_file'] = self::getEnvFile();
-    }
-
-    public static function getSection( $section )
-    {
-        $section = self::get( $section );
-        if ( is_array( $section ) ) {
-            return $section;
-        } else {
-            return [];
-        }
-    }
-
-    public static function getKey( $section, $key )
-    {
-        self::checkInstance();
-
-        if ( array_key_exists( $section, self::$env ) ) {
-            if ( array_key_exists( $key, self::$env[$section] ) ) {
-                return self::$env[ $section ][ $key ];
+            if ( empty( $section ) ) {
+                self::$env[ $key ] = $value;
             } else {
-                return '';
+                if ( !array_key_exists( $section, self::$env ) ) {
+                    self::$env[ $section ] = [];
+                }
+                self::$env[ $section ][ $key ] = $value;
             }
-        } else {
-            return '';
+
+            $composed_key = ( empty( $section ) ? $key : $section . '.' . $key );
+
+            if ( $force || ( !array_key_exists($composed_key, $_SERVER) && !array_key_exists($composed_key, $_ENV) ) ) {
+                putenv( $composed_key . '=' . $value );
+                $_ENV[$composed_key] = $value;
+                $_SERVER[$composed_key] = $value;
+            }   
         }
-        
     }
 
-    public static function get( $key )
+    public static function forceLoad()
     {
-        self::checkInstance();
-        
+        self::load( true );
+    }
+
+    public function get( $key )
+    {
         if ( array_key_exists( $key, self::$env ) ) {
             return self::$env[ $key ];
         } else {
-            foreach( self::$env as $i => $group ) {
-                if ( !is_array( $group ) ) {
-                    throw new \Exception('Chave não encontrada no .env: ' . $key);
-                }
-                if ( array_key_exists( $key, $group )) {
-                    return $group[$key];
-                }
-            }
-            return '';
+            return NULL;
         }
-        
     }
 
-    public function __get( $key )
+    public function all()
     {
-        return self::get( $key );
+        return self::$env;
     }
 }

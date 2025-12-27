@@ -1,441 +1,372 @@
 <?php
 namespace Slendie\Framework\Database;
 
-use PDO;
-
 class Sql
 {
-    protected $tables = [];
-    protected $table_index = -1;
+    private $table = null;
+    private $alias = null;
+    private $insert = null;
+    private $select = null;
+    private $update = null;
+    private $delete = null;
+    private $where = null;
+    private $group = null;
+    private $order = null;
+    private $limit = null;
+    private $offset = null;
+    private $join = null;
+    private $union = null;
+    private $model = null;
+    private $binds = [];
+    private $is_opened = false;
+    private $is_suppress_logic = false;
 
-    protected $statement = '';
-    protected $where = '';
-    protected $group = '';
-    protected $order = '';
-    protected $having = '';
-    protected $limit = '';
-    protected $offset = '';
-
-    protected $bindables = [];
-    protected $is_prepare_mode = false;
-    protected $opened = 0;
-    protected $open_waiting = 0;
-
-    public function __construct( $table )
+    public function __construct( $table = null, $alias = null )
     {
         $this->table( $table );
+        $this->alias(  $alias );
     }
 
     public function table( $table )
     {
-        if ( is_array( $table ) ) {
-            foreach( $table as $name => $alias ) {
-                $this->table_index++;
+        $this->table = $table;
+    }
 
-                $this->tables[ $this->table_index ] = 
-                [
-                    'table' => $name,
-                    'as'    => $alias
-                ];
+    public function alias( $alias )
+    {
+        $this->alias = $alias;
+    }
+
+    public function model( $model )
+    {
+        $this->model = $model;
+    }
+
+    public function bind( $column, $value = null )
+    {
+        if ( is_array( $column ) ) {
+            foreach( $column as $key => $value ) {
+                $this->binds[$key] = $value;
             }
         } else {
-            $this->table_index++;
-
-            $this->tables[ $this->table_index ] = 
-            [
-                'table' => $table,
-                'as'    => $table
-            ];
+            $this->binds[$column] = $value;
         }
         return $this;
     }
 
-    /* *** Auxiliary functions *** */
-    
-    /**
-     * WHERE condition
-     */
-    private function buildWhere( $column, $value, $operand, $logical = 'AND', $negate = false)
+    private static function column( $column )
+    {
+        if ( strpos($column, '.') !== false ) {
+            $parts = explode('.', $column);
+            $final_column = "`{$parts[0]}`.`{$parts[1]}`";
+        } else {
+            if ( $column == '*' ) {
+                $final_column = '*';
+            } else {
+                $final_column = "`{$column}`";
+            }
+        }
+
+        return $final_column;
+    }
+
+    private static function value( $value )
+    {
+        if ( strpos( $value, '`') == 1 ) {
+            $final_value = substr( $value, 1, -1 );
+        } else {
+            if ( is_numeric( $value ) ) {
+                $final_value = $value;
+            } else {
+                $final_value = "'" . addslashes( $value ) . "'";
+            }
+        }
+
+        return $final_value;
+    }
+
+    public function insert( $columns )
+    {
+        if ( !is_array( $columns ) ) {
+            throw new \Exception( 'Insert must be an array' );
+        }
+
+        $this->insert = "INSERT INTO `{$this->table}`";
+        $sets = '';
+        $values = '';
+        foreach( $columns as $column ) {
+            if ( !empty( $sets ) ) {
+                $sets .= ', ';
+                $values .= ', ';
+            }
+            $sets .= self::column( $column );
+            $values .= "?";
+        }
+        $this->insert .= " ({$sets}) VALUES ({$values})";
+        return $this;
+    }
+
+    public function select( $select = ['*'] )
+    {
+        if ( !is_array( $select ) ) {
+            throw new \Exception('Select must be an array');
+        }
+
+        $columns = '';
+        foreach ( $select as $column ) {
+            if ( !empty( $columns ) ) {
+                $columns .= ', ';
+            }
+            $columns .= self::column( $column );
+        }
+
+        $this->select = "SELECT {$columns} FROM `{$this->table}`";
+
+        if ( !is_null( $this->alias ) ) {
+            $this->select .= " AS `{$this->alias}`";
+        }
+
+        return $this;
+    }
+
+    public function count()
+    {
+        $this->select = "SELECT COUNT(*) FROM `{$this->table}`";
+
+        if ( !is_null( $this->alias ) ) {
+            $this->select .= " AS `{$this->alias}`";
+        }
+
+        return $this;
+    }
+
+    public function update( $columns )
+    {
+        if ( !is_array( $columns ) ) {
+            throw new \Exception('Update must be an array');
+        }
+
+        $this->update = "UPDATE `{$this->table}` SET ";
+        $sets = '';
+        foreach ( $columns as $column ) {
+            if ( !empty( $sets ) ) {
+                $sets .= ', ';
+            }
+            $sets .= self::column( $column) . " = ?";
+        }
+        $this->update .= $sets;
+
+        return $this;
+    }
+
+    public function delete()
+    {
+        $this->delete = "DELETE FROM `{$this->table}`";
+        return $this;
+    }
+
+    public function where( $column, $value = null, $operator = '=', $logic = 'AND' )
     {
         if ( empty( $this->where ) ) {
             $this->where = "WHERE ";
         } else {
-            $this->where .= "{$logical} ";
-        }
-
-        while( $this->open_waiting > 0 ) {
-            $this->where .= "( ";
-            $this->open_waiting--;
-        }
-
-        if ( $negate ) {
-            $this->where .= " NOT (";
-        }
-
-        $this->where .= self::encapsulate( $column );
-        $this->where .= " {$operand} ";
-
-        if ( $this->is_prepare_mode ) {
-            $this->where .= "? ";
-            $this->bind( $column, $value );
-        } else {
-            $this->where .= self::sanitize( $value );
-        }
-
-        if ( $negate ) {
-            $this->where .= ") ";
-        }
-
-        $this->where .= " ";
-    }
-
-    private function selectColumn( $column ) 
-    {
-        if ( preg_match( '/\./', $column ) ) {
-            return self::encapsulate( $column );
-        } else {
-            return self::encapsulate( $this->currentAlias() . ".{$column}" );
-        }
-    }
-
-    private function getFrom()
-    {
-        $from = "FROM " . self::encapsulate( $this->currentTable() ) . " ";
-        if ( $this->currentTable() != $this->currentAlias() ) {
-            $from .= "AS " . self::encapsulate( $this->currentAlias() ) . " ";
-        }
-        return $from;
-    }
-
-    private function currentTable()
-    {
-        return $this->tables[ $this->table_index ]['table'];
-    }
-
-    private function currentAlias()
-    {
-        return $this->tables[ $this->table_index ]['as'];
-    }
-
-    public function where( $column, $value, $operand = '=' )
-    {
-        $this->buildWhere( $column, $value, $operand, 'AND');
-        return $this;
-    }
-
-    private static function encapsulate( $object ) 
-    {
-        if ( preg_match('/\./', $object) ) {
-            $parts = explode('.', $object);
-            return "`{$parts[0]}`.`{$parts[1]}`";
-        } else {
-            return "`{$object}`";
-        }
-    }
-
-    private static function sanitize( $value )
-    {
-        if ( is_string($value) && !empty($value) && !is_numeric($value) ) {
-            return "'" . htmlentities($value, ENT_QUOTES) . "'";
-
-        } else if ( is_bool($value) || ( is_numeric($value) && ( $value == '0' || $value == '1' ) ) ) {
-            return $value ? 1 : 0;
-
-        } else if ( !empty( $value ) && !is_null( $value ) ) {
-            return $value;
-
-        } else if ( empty( $value ) ) {
-            return "''";
-            
-        } else {
-            return "NULL";
-        }
-    }
-
-    private static function getType( $value )
-    {
-        if ( is_string($value) && !empty($value) && !is_numeric($value) ) {
-            return PDO::PARAM_STR;
-
-        } else if ( is_bool($value) || ( is_numeric($value) && ( $value == '0' || $value == '1' ) ) ) {
-            return PDO::PARAM_BOOL;
-
-        } else if ( !empty( $value ) && !is_null( $value ) ) {
-            if ( is_int( $value ) ) {
-                return PDO::PARAM_INT;
-            } else {
-                return PDO::PARAM_STR;
+            if ( !$this->is_suppress_logic ) {
+                $this->where .= " {$logic} ";
             }
-        } else if ( empty( $value ) ) {
-            return PDO::PARAM_STR;
-            
+            $this->is_suppress_logic = false;
+        }
+        if ( is_null( $value ) ) {
+            $this->where .= self::column( $column ) . " {$operator} :{$column}";
         } else {
-            return PDO::PARAM_NULL;
+            $this->where .= self::column( $column ) . " {$operator} " . self::value( $value );
         }
+
+        return $this;
     }
 
-    private function bind( $column, $value )
+    public function orWhere( $column, $value, $operator = '=' )
     {
-        $this->bindables[] = [
-            $column => $value
-        ];
+        return $this->where( $column, $value, $operator, 'OR' );
     }
 
-    /**
-     * Build a SELECT statement
-     */
-    public function select( $args = '*' )
+    public function open($logic = 'AND')
     {
-        if ( is_array( $args ) ) {
-            $columns = implode(', ', array_map( array($this, 'selectColumn') , $args ) );
+        $this->is_opened = true;
+        $this->is_suppress_logic = true;
+
+        if ( empty( $this->where ) ) {
+            $this->where = "WHERE ";
         } else {
-            $columns = $args;
+            $this->where .= " {$logic} ";
         }
-        $this->statement = "SELECT {$columns} " . $this->getFrom();
+        $this->where .= "(";
         return $this;
     }
 
-    /**
-     * Build a JOIN statement
-     */
-    public function join( $table, $args, $join_type = 'INNER' )
+    public function orOpen()
     {
-        $this->table( $table );
-        $this->statement .= $join_type . " JOIN " . self::encapsulate( $this->currentTable() ) . " ";
-        if ( $this->currentTable() != $this->currentAlias() ) {
-            $this->statement .= "AS " . self::encapsulate( $this->currentAlias() ) . " ";
-        }
-        $this->statement .= "ON ";
-
-        $first = true;
-        foreach( $args as $column_1 => $column_2 ) {
-            if ( !$first ) {
-                $this->statement .= "AND ";
-            }
-            $first = false;
-            $this->statement .= self::encapsulate( $column_1 ) . " = " . self::encapsulate( $column_2 ) . " ";
-        }
-
-        return $this;
-    }
-
-    /**
-     * Build a INSERT statement. This build will be generate a prepare SQL statement.
-     */
-    public function insert( $data )
-    {
-        $this->statement = "INSERT INTO " . self::encapsulate( $this->currentTable() ) . " (" . 
-                implode(', ', array_map( 'self::encapsulate', array_keys( $data ) ) ) . 
-                ") VALUES (";
-
-        if ( $this->is_prepare_mode ) {
-            $values = implode(', ', array_map( function ($v) { 
-                return '?'; 
-            }, $data ) );
-            foreach( $data as $column => $value ) {
-                $this->bind( $column, $value );
-            }
-        } else {
-            $values = implode(', ', array_map( function ($v) { return self::sanitize( $v ); }, $data ) );
-        }
-        $this->statement .= "{$values} ) ";
-        return $this;
-    }
-
-    /**
-     * Build a UPDATE statement. This build will be generate a prepare SQL statement.
-     */
-    public function update( $data )
-    {
-        $this->statement = "UPDATE " . self::encapsulate( $this->currentTable() ) . " SET ";
-        $sets = [];
-        foreach( $data as $column => $value ) {
-            if ( $this->is_prepare_mode ) {
-                $sets[] = self::encapsulate( $column ) . " = ?";
-                $this->bind( $column, $value );
-            } else {
-                $sets[] = self::encapsulate( $column ) . " = " . self::sanitize( $value );
-            }
-        }
-        $this->statement .= implode(', ', $sets) . " ";
-        return $this;
-    }
-    
-    /**
-     * Build a DELETE statement.
-     */
-    public function delete()
-    {
-        $this->statement = "DELETE FROM " . self::encapsulate( $this->currentTable() );
-        return $this;
-    }
-
-    /**
-     * Build a TRUNCATE statement.
-     */
-    public function truncate()
-    {
-        return "TRUNCATE TABLE " . self::encapsulate( $this->currentTable() ) . "; ";
-    }
-    
-
-
-    public function whereOr( $column, $value, $operand = '=' )
-    {
-        $this->buildWhere( $column, $value, $operand, 'OR');
-        return $this;
-    }
-
-    public function whereNot( $column, $value, $operand = '=' )
-    {
-        $this->buildWhere( $column, $value, $operand, 'AND', true);
-        return $this;
-    }
-
-    public function whereOrNot( $column, $value, $operand = '=' )
-    {
-        $this->buildWhere( $column, $value, $operand, 'OR', true);
-        return $this;
-    }
-
-    public function open()
-    {
-        // $this->where .= "( ";
-        $this->opened++;
-        $this->open_waiting++;
-        return $this;
+        return $this->open('OR');
     }
 
     public function close()
     {
-        if ( $this->opened == 0 ) {
-            throw new \Exception('Não existem condições abertas para fechar.');
-        }
+        $this->is_opened = false;
+        $this->is_suppress_logic = false;
 
-        $this->where .= ") ";
-        $this->opened--;
-        return $this;
-    }
- 
-    /**
-     * Build GROUP BY
-     */
-    public function group( $args )
-    {
-        $this->group = "GROUP BY ";
-
-        if ( is_array( $args ) ) {
-            $columns = implode(', ', $args);
-        } else {
-            $columns = $args;
-        }
-
-        $this->group .= "{$columns} ";
+        $this->where .= ")";
         return $this;
     }
 
-    /**
-     * Build ORDER BY
-     */
-    public function order( $args, $order = 'ASC' )
+    public function group( $group )
     {
-        if ( empty($this->order) ) {
-            $this->order = "ORDER BY ";
-        } else {
-            $this->order .= ", ";
-        }
-        if ( is_array( $args ) ) {
-            $first = true;
-            foreach( $args as $column_name => $column_order ) {
-                if ( empty( $column_order ) ) {
-                    $column_order = $order;
-                }
-                if ( !$first ) {
-                    $this->order .= ", ";
-                }
-                $first = false;
-                $this->order .= "{$column_name} {$column_order} ";
+        if ( is_array( $group ) ) {
+            $groupmant = '';
+            foreach( $group as $column ) {
+                $groupmant .= self::column( $column ) . ", ";
             }
         } else {
-            $this->order .= "{$args} {$order} ";
+            $groupmant = "`{$group}`";
         }
+        $this->group = "GROUP BY {$groupmant}";
         return $this;
     }
 
-    /**
-     * Build HAVING
-     */
-    public function having( $cond )
+    public function order( $order, $direction = 'ASC' )
     {
-        if ( empty( $this->having ) ) {
-            $this->having .= "HAVING ";
+        if ( is_array( $order ) ) {
+            $ordermant = '';
+            foreach( $order as $column ) {
+                $ordermant .= self::column( $column ) . " {$direction}, ";
+            }
         } else {
-            $this->having .= "AND ";
+            $ordermant = "`{$order}` $direction";
         }
-        $this->having .= "{$cond} ";
-
+        $this->order = "ORDER BY {$ordermant}";
         return $this;
     }
 
-    /**
-     * Build OFFSET
-     */
-    public function offset( $offset )
-    {
-        if ( empty( $this->offset ) ) {
-            $this->offset .= "OFFSET {$offset} ";
-        } else {
-            throw new \Exception('Não pode definir mais do que 1 offset.');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Build LIMIT
-     */
     public function limit( $limit )
     {
-        if ( empty( $this->limit ) ) {
-            $this->limit .= "LIMIT {$limit} ";
-        } else {
-            throw new \Exception('Não pode definir mais do que 1 limit.');
-        }
+        $this->limit = "LIMIT {$limit}";
+        return $this;
+    }
 
+    public function offset( $offset )
+    {
+        $this->offset = "OFFSET {$offset}";
+        return $this;
+    }
+
+    public function union( $sql )
+    {
+        $this->union = "UNION {$sql}";
+        return $this;
+    }
+
+    public function join( $table, $on, $join = 'JOIN', $alias = null )
+    {
+        $this->join = "{$join} `{$table}`";
+        if ( !is_null( $alias ) ) {
+            $this->join .= " AS `{$alias}`";
+        }
+        $on_condition = '';
+        foreach( $on as $joined ) {
+            if ( count( $joined ) == 2 ) {
+                list($column1, $column2) = $joined;
+                $operator  = '=';
+            } else {
+                list($column1, $column2, $operator) = $joined;
+            }
+
+            if ( empty( $on_condition ) ) {
+                $on_condition = " ON ";
+            } else {
+                $on_condition .= " AND ";
+            }
+            $on_condition .= self::column( $column1 ) . " {$operator} " . self::column( $column2 );
+        }
+        $this->join .= $on_condition;
         return $this;
     }
 
     public function get()
     {
         $sql = '';
-        $sql .= $this->statement;
-        $sql .= $this->where;
-        while ( $this->opened > 0 ) {
-            $this->close();
-        }
-        $sql .= $this->order;
-        $sql .= $this->group;
-        $sql .= $this->having;
-        $sql .= $this->limit;
-        $sql .= $this->offset;
-        $sql .= ";";
 
-        return $sql;
+        /* STATEMENT */
+        if ( empty( $this->insert ) && empty( $this->select ) && empty( $this->update ) && empty( $this->delete ) ) {
+            $this->select();
+        }
+
+        if ( !is_null( $this->insert ) ) {
+            $sql .= "{$this->insert} ";
+
+        } elseif ( !is_null( $this->select ) ) {
+            $sql .= "{$this->select} ";
+
+        } elseif ( !is_null( $this->update ) ) {
+            $sql .= "{$this->update} ";
+
+        } elseif ( !is_null( $this->delete ) ) {
+            $sql .= "{$this->delete} ";
+
+        }
+
+        /* JOIN */
+
+        if ( !is_null( $this->join ) ) {
+            $sql .= "{$this->join} ";
+        }
+
+        /* CONDITIONS */
+
+        if ( !is_null( $this->where ) ) {
+            $sql .= "{$this->where} ";
+
+        }
+
+        /* GROUPING */
+
+        if ( !is_null( $this->group ) ) {
+            $sql .= "{$this->group} ";
+        }
+
+        /* ORDERING */
+
+        if ( !is_null( $this->order ) ) {
+            $sql .= "{$this->order} ";
+        }
+
+        /* LIMIT AND OFFSET */
+
+        if ( !is_null( $this->limit ) ) {
+            $sql .= "{$this->limit} ";
+        }
+
+        if ( !is_null( $this->offset ) ) {
+            $sql .= "{$this->offset} ";
+        }
+
+        /* UNION */
+
+        if ( !is_null( $this->union ) ) {
+            $sql .= "{$this->union} ";
+        }
+
+        if ( is_null( $this->model ) ) {
+            return trim( $sql );
+        } else {
+            $this->model->setSql( $this );
+            return $this->model->get();
+        }
     }
 
-    public function values()
+    public function __call( $name, $arguments )
     {
-        $values = [];
-        foreach( $this->bindables as $i => $data ) {
-            foreach( $data as $column => $value ) {
-                $values[$i] = $value;
-            }
+        if ( is_null( $this->model ) ) {
+            throw new \Exception( "Call to undefined method " . __CLASS__ . "::{$name}()" );
         }
-        return $values;
-    }
 
-    public function setPrepareMode( $status = true )
-    {
-        $this->is_prepare_mode = $status;
+        return $this->model->$name( ...$arguments );
     }
 }

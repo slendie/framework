@@ -4,7 +4,7 @@ namespace Slendie\Framework\View;
 use Slendie\Framework\Routing\Router;
 use Slendie\Framework\Routing\Request;
 
-class TemplateLoader
+class LoaderOld
 {
     const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
     const NAME_PATTERN = '[A-Za-z0-9\.\-\_]{1,}';
@@ -32,7 +32,7 @@ class TemplateLoader
     public function __construct( $template_file = null, $params = [] )
     {
         $this->template_file = $template_file;
-        $this->params = $params;
+        $this->setData( $params );
 
         $this->rootpath = env('base_dir');
         $this->path = env('view_path');
@@ -48,6 +48,21 @@ class TemplateLoader
         $this->parseMagicFunctions();
 
         $this->parsePhp();
+    }
+
+    public function set( $content )
+    {
+        $this->doc = $content;
+    }
+
+    /**
+     * Return $doc template
+     * 
+     * @return string $doc
+     */
+    public function get()
+    {
+        return $this->doc;
     }
 
     /**
@@ -130,7 +145,7 @@ class TemplateLoader
 
         if ( count( $matches ) > 0 ) {
             // $this->extended = $this->read( $matches[1] );
-            $loader = new TemplateLoader( $matches[1] );
+            $loader = new LoaderOld( $matches[1] );
             $this->extended = $loader->get();
 
             $this->template = str_replace( $matches[0], '', $this->template);
@@ -173,7 +188,7 @@ class TemplateLoader
 
         if ( count( $matches ) > 0 ) {
             foreach( $matches[1] as $i => $include ) {
-                $loader = new TemplateLoader( $include );
+                $loader = new LoaderOld( $include );
                 $content = $loader->get();
 
                 $this->doc = str_replace( $matches[0][$i], $content, $this->doc );
@@ -399,16 +414,6 @@ class TemplateLoader
     }
 
     /**
-     * Return $doc template
-     * 
-     * @return string $doc
-     */
-    public function get()
-    {
-        return $this->doc;
-    }
-
-    /**
      * Render $doc as php
      * 
      * @return void
@@ -418,5 +423,10 @@ class TemplateLoader
         $cache_file = $this->filename( $this->template_file, $this->cache );
         $this->file_force_contents( $cache_file, $this->doc );
         $this->doc = $this->load( $this->template_file, $this->cache, $this->params );
+    }
+
+    public function setData( $params ) 
+    {
+        $this->params = $params;
     }
 }

@@ -1,10 +1,12 @@
 <?php
 
-use Slendie\Framework\View\Template;
+use Slendie\Framework\View\View;
 
 if ( !function_exists('view') ) {
-    function view( $template, $data = [] ) 
+    function view( $template_file, $data = [] )
     {
-        return (new Template())->render( $template, $data );
+        $view = new View( $template_file );
+        $view->setData( $data );
+        return $view->render();
     }
 }

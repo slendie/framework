@@ -1,248 +1,348 @@
 <?php
+
 namespace Slendie\Framework\View;
 
 class Loader
 {
-    const KEY_WORD = '\w\.\_\-\>\)\(';
-    protected $base = "";
-    protected $path = "";
-    protected $extension = "";
-    protected $template = "";
-    protected $doc = "";
-    protected $data = [];
+    const BREAK_LINE = ( PHP_OS == 'Linux' ? "\n" : "\r\n" );
+    const NAME_REGEX = '[A-Za-z0-9\.\-\_]{1,}';   // Any object name
+    const WORD_REGEX = '[^\']{1,}';
+    const EXTENDED_PATTERN = '/@extends\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)/';
+    const SECTION_PATTERN = '/@section\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?[\s]*(.*?)@endsection(?:' . self::BREAK_LINE . ')?/s';
+    const YIELD_PATTERN = '/@yield\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
+    const INCLUDE_PATTERN = '/@include\([\s]*\'(' . self::NAME_REGEX . ')\'[\s]*\)(?:' . self::BREAK_LINE . ')?/s';
 
-    public function __construct()
-    {
-    }
+    /**
+     * @param string $path
+     */
+    protected $path;
 
-    public function setBase( $folder ): void
+    /**
+     * @param string $file
+     */
+    protected $file;
+
+    /**
+     * @param string $extension
+     */
+    protected $extension;
+
+    /**
+     * @param string $content
+     */
+    protected $content = '';
+
+    /**
+     * @param string $extended
+     */
+    protected $extended = '';
+
+    /**
+     * @param string $sections
+     */
+    protected $sections = [];
+
+    /**
+     * @param string $path
+     * @param string $extension
+     * @throws \Exception
+     */
+    public function __construct( string $template = null, string $path = null, $extension = null )
     {
-        $this->base = $folder;
+        $this->setBasePath( $path );
+        $this->setExtension( $extension );
+
+        $this->setFileContent( $template );
+
+        $this->parse();
     }
 
     /**
-     * Set default folder for views.
-     * If not used, default folder is resources/views
-     * @param string $folder Folder where views are
-     * @return void
+     * Define the view's path.
+     * Convert '.' into directory separator.
+     * Checks if path exists.
+     *
+     * @param string|null $path
+     * @throws \Exception
      */
-    public function setPath( $folder ): void 
+    public function setBasePath( string $path = null )
     {
-        $path = str_replace( '.', DIRECTORY_SEPARATOR, $folder);
-        if ( substr( $path, -1 ) != DIRECTORY_SEPARATOR ) {
+        if ( empty( $path ) ) {
+            $path = SITE_FOLDER . env('VIEW')['VIEW_PATH'];
+        }
+
+        $path = self::convertToPath( $path );
+
+        if ( substr( $path, -1) !== DIRECTORY_SEPARATOR ) {
             $path .= DIRECTORY_SEPARATOR;
         }
+        
+        if ( ! $path || ! \is_dir( $path ) ) {
+            throw new \Exception( "View path [{$path}] not found." );
+        }
+
         $this->path = $path;
     }
 
-    public function setTemplate( $template ): void
-    {
-        $this->template = $template;
-    }
-
     /**
-     * Set default template extension for view.
-     * If not used, default extension is .tpl.php
-     * @param string $extension Extension for views
-     * @return void
+     * Set view's extension.
+     * View's extension are attached at the end of the file name.
+     *
+     * @param null $extension
      */
-    public function setExtension( $extension ): void 
+    public function setExtension( $extension = null ) 
     {
+        if ( empty( $extension ) ) {
+            $extension = env('VIEW')['VIEW_EXTENSION'];
+        }
+
         $this->extension = $extension;
     }
 
-    public function setKey( $key, $value ) 
-    {
-        $this->data[ $key ] = $value;
-    }
-
-    public function setData( $data ) 
-    {
-        if ( is_array( $data ) ) {
-            foreach( $data as $key => $value ) {
-                $this->setKey( $key, $value );
-            }
-        }
-    }
-
-    public function set( $content )
-    {
-        $this->doc = $content;
-    }
-
-    public function get() 
-    {
-        return $this->doc;
-    }
-
-    public function replace( $search, $replace_to )
-    {
-        $this->set( str_replace( $search, $replace_to, $this->get() ));
-    }
-
-    public function pregReplace( $pattern, $replace_to )
-    {
-        $this->set( preg_replace( $pattern, $replace_to, $this->get() ));
-    }
-
-    public function base(): string
-    {
-        return $this->base;
-    }
-    
     /**
-     * Get default folder.
-     * @return string Folder 
+     * Return the base path.
+     *
+     * @return string
      */
-    public function path(): string 
+    public function getBasePath(): string
     {
         return $this->path;
     }
 
-    public function data(): array
-    {
-        return $this->data;
-    }
-
-    public function extension(): string
+    /**
+     * Return the view's extension.
+     *
+     * @return string
+     */
+    public function getExtension(): string
     {
         return $this->extension;
     }
-    
-    public function key( string $key )
+
+    private function setFileContent( $file_content = null )
     {
-        if ( $this->keyExists( $key )) {
-            return $this->data[ $key ];
+        $this->file = $file_content;
+
+        if ( empty( $file_content ) ) {
+            $this->content = '';
         } else {
-            return NULL;
+            $this->content = $this->read( $file_content );
         }
     }
 
-    public function extract( string $pattern )
+    /**
+     * Convert $path into directory path.
+     *
+     * @param string $path
+     * @return string
+     */
+    public static function convertToPath( string $path ): string
     {
-        preg_match_all( $pattern, $this->get(), $matches );
-        return $matches;
+        $converted_path = str_replace('.', DIRECTORY_SEPARATOR, $path);
+        $converted_path = str_replace('\\', DIRECTORY_SEPARATOR, $converted_path);
+        $converted_path = str_replace('/', DIRECTORY_SEPARATOR, $converted_path);
+
+        return $converted_path;
     }
 
-    public function load( $template, $data = [] )
+    /**
+     * Check if file exists.
+     *
+     * @param string $path
+     * @return bool
+     * @throws \Exception
+     */
+    private function check( $file ): bool
     {
-        $this->setTemplate( $template );
-        $this->setData( $data );
+        if ( empty( $file ) ) {
+            return false;
+        }
 
-        return $this->parse();
+        if ( !file_exists( $file ) ) {
+            throw new \Exception( 'File not found: ' . $file );
+        }
+
+        if ( !is_readable( $file) ) {
+            throw new \Exception( 'File not readable: ' . $file );
+        }
+
+        return true;
     }
 
-    public function parse($return_doc = true)
+    /**
+     * Read file content and return it.
+     *
+     * @param string $file
+     * @return string
+     */
+    private function read( $file ): string
     {
-        if ( '' == $this->template ) {
+        $full_file = self::convertToPath( $this->path . $file ) . ( !empty( $this->extension ) ? '.' . $this->extension : '' );
+
+        if ( !$this->check( $full_file ) ) {
             return '';
         }
 
-        $template = str_replace('.', DIRECTORY_SEPARATOR, $this->template);
-        $filename = $this->base() . $this->path() . $template . '.' . $this->extension;
+        return file_get_contents( $full_file );
+    }
 
-        if ( !file_exists( $filename ) ) {
-            throw new \Exception( sprintf('%s file was not found.', $filename));
-        }
+    /**
+     * Parse the view's content.
+     *
+     * @return void
+     */
+    public function parse()
+    {
+        /* Extract all sections from the view */
+        $this->parseSections();
 
-        if ( count( $this->data ) > 0 ) {
-            extract( $this->data );
-        }
+        /* Parse the extended view */
+        $this->parseExtended();
 
-        ob_start();
-        include $filename;
-        $this->set( ob_get_clean() );
+        /* Parse the yield sections */
+        $this->parseYield();
 
-        if ( $return_doc ) {
-            return $this->get();
+        /* Parse includes */
+        $this->parseInclude();
+    }
+
+    /**
+     * Extended the current view to their parent.
+     *
+     * @throws \Exception
+     */
+    private function parseExtended()
+    {
+        /* Check for layout extension */
+        preg_match( self::EXTENDED_PATTERN, $this->content, $matches );
+
+        if ( count( $matches ) > 0 ) {
+            $extended = new Loader( $matches[1], $this->path, $this->extension );
+            $extended->parse();
+
+            $this->extended = $extended->getContent();
+
+            /* Replace @extend directive from content */
+            $this->content = str_replace( $matches[0], $this->extended, $this->content );
         }
     }
 
-    public function keyExists( $key ): bool
+    /**
+     * Parse sections from template.
+     * Keep all sections into $sections array.
+     */
+    private function parseSections()
     {
-        return array_key_exists( $key, $this->data() );
+        // Check for sections
+        preg_match_all( self::SECTION_PATTERN, $this->content, $matches );
+
+        if ( count( $matches[1] ) > 0 ) {
+            foreach( $matches[1] as $i => $key ) {
+                /* Keep section keys */
+                $this->sections[ $key ] = $matches[2][$i];
+
+                /* Cleanup sections from content */
+                $this->content = str_replace( $matches[0][$i], '', $this->content );
+            }
+        }
     }
 
-    public function parseKeys( $subject, $with_slashes = false ): string
+    /**
+     * Parse yield sections.
+     * Replace yield sections with their content.
+     * Remove yield sections wich has no content.
+     */
+    private function parseYield()
     {
-        $key_pattern = '/\$([' . self::KEY_WORD . ']*)/';
-        preg_match_all( $key_pattern, $subject, $matches );
+        preg_match_all( self::YIELD_PATTERN, $this->content, $matches);
 
-        foreach( $matches[0] as $i => $found ) {
-            $key = $matches[1][$i];
-            if ( true == strpos( $key, '->' ) ) {
-                $obj_parts = explode('->', $key);
-                if ( $this->keyExists( $obj_parts[0]) ) {
-                    // $obj = $this->key( $obj_parts[0] );
-                    $obj = $this->key( array_shift( $obj_parts ) );
-                    $rest = implode('->', $obj_parts);
-
-                    $eval = '$check = !is_null($obj->' . $rest . ');';
-                    // xdebug_var_dump($eval);
-                    eval($eval);
-                    // xdebug_var_dump($check);
-                    // $check = true;
-                    // while( count($obj_parts) > 0 && $check == true ) {
-                    //     $property = array_shift($obj_parts);
-                    //     if ( endsWith(')', $property) ) {
-                    //         if ( method_exists($obj, $property) ) {
-                    //             $eval = '$check = !is_null( $obj->' . $property . ');';
-                    //             eval($eval);
-                    //         } else {
-                    //             $check = false;
-                    //         }
-                    //     } else {
-                    //         if ( property_exists( $obj, $property )) {
-                    //             $eval = '$check = !is_null( $obj->' . $property . ');';
-                    //             eval($eval);
-                    //         } else {
-                    //             $check = false;
-                    //         }
-                    //     }
-                    //     if ($check) {
-                    //         eval('$obj = $obj->' . $property . ';');
-                    //     }
-                    // }
-                    if ($check) {
-                        // $param_value = $obj;
-                        $eval = '$param_value = $obj->' . $rest . ';';
-                        eval($eval);
-                        if ( is_numeric($param_value) ) {
-                            $subject = str_replace( $found, $param_value, $subject );
-    
-                        } elseif ( !is_array($param_value) ) {
-                            // $subject = str_replace( $found, "'".addslashes($param_value)."'", $subject );
-                            if ( $with_slashes ) {
-                                $subject = str_replace( $found, "'".addslashes($param_value)."'", $subject );
-                            } else {
-                                $subject = str_replace( $found, $param_value, $subject );
-                            }
-                            
-                        }
-                    }
-                    
-                }
-            } else {
-                if ( $this->keyExists( $matches[1][$i] ) ) {
-                    $value = $this->key( $matches[1][$i] );
-
-                    if ( is_numeric($value) ) {
-                        $subject = str_replace( $found, $value, $subject );
-
-                    } elseif ( !is_array($value) ) {
-                        // $subject = str_replace( $found, "'".addslashes($value)."'", $subject );
-                        if ( $with_slashes ) {
-                            $subject = str_replace( $found, "'".addslashes($value)."'", $subject );
-                        } else {
-                            $subject = str_replace( $found, $value, $subject );
-                        }
-                        
-                    }
-
+        if ( count( $matches[1] ) > 0 ) {
+            foreach( $matches[1] as $i => $key ) {
+                if ( array_key_exists( $key, $this->sections ) ) {
+                    $this->content = str_replace( $matches[0][$i], $this->sections[ $key ], $this->content);
                 }
             }
         }
+    }
 
-        return $subject;
+    /**
+     * Include another view into this.
+     *
+     * @throws \Exception
+     */
+    private function parseInclude()
+    {
+        /* Check for layout extension */
+        preg_match( self::INCLUDE_PATTERN, $this->content, $matches );
+
+        if ( count( $matches ) > 0 ) {
+            $include = new Loader( $matches[1], $this->path, $this->extension );
+            $include->parse();
+
+            $content = $include->getContent();
+
+            /* Replace @include directive from content */
+            $this->content = str_replace( $matches[0], $content, $this->content );
+        }
+    }
+
+    public function cleanup()
+    {
+        $this->cleanupSections();
+        $this->cleanupYield();
+    }
+
+    public function cleanupSections()
+    {
+        // Check for sections
+        preg_match_all( self::SECTION_PATTERN, $this->content, $matches );
+
+        if ( count( $matches[1] ) > 0 ) {
+            foreach( $matches[1] as $i => $key ) {
+                /* Cleanup sections from content */
+                $this->content = str_replace( $matches[0][$i], '', $this->content );
+            }
+        }
+    }
+
+    public function cleanupYield()
+    {
+        preg_match_all( self::YIELD_PATTERN, $this->content, $matches);
+
+        if ( count( $matches[1] ) > 0 ) {
+            foreach( $matches[1] as $i => $key ) {
+                $this->content = str_replace( $matches[0][$i], '', $this->content);
+            }
+        }
+    }
+
+    /**
+     * Return the Extendend view.
+     *
+     * @return string
+     */
+    public function getExtended(): string
+    {
+        return $this->extended;
+    }
+
+    /**
+     * Return the array of sections.
+     *
+     * @return array
+     */
+    public function getSections(): array
+    {
+        return $this->sections;
+    }
+
+    /**
+     * Return the view's content.
+     *
+     * @return string
+     */
+    public function getContent()
+    {
+        return $this->content;
     }
 }

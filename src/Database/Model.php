@@ -1,465 +1,169 @@
 <?php
+
 namespace Slendie\Framework\Database;
 
-use Slendie\Tools\Str;
-use Slendie\Framework\Environment\Env;
-use \PDO;
+use Slendie\Framework\Database\Database;
+use Slendie\Framework\Database\Sql;
 
 class Model
 {
-    protected static $_dbh = null;
-    protected $_table = null;
-    protected $_id = null;
-    protected $_meta = [];
-    protected $_data = [];
+    protected static $db = null;
+    protected $table;
+    protected $alias;
+    protected $attributes = [];
+    protected $fillable = [];
+    protected $hidden = [];
+    protected $guarded = [];
+    protected $casts = [];
+    protected $dates = [];
+    protected $dateFormat = 'Y-m-d H:i:s';
+    protected $primaryKey = 'id';
+    protected $sql = null;
 
-    protected $_sql = null;
-
-    protected $log_timestamp = false;
-    protected $soft_deletes = false;
-
-    public function __construct()
-    {
-        /* Define table name */
-        if ( is_null( $this->_table ) ) {
-            $table = self::tableName();
-            $this->setTable( $table );
-        } else {
-            $table = $this->_table;
-        }
-
-        /* Define ID column */
-        if ( is_null( $this->_id ) ) {
-            $this->_id = 'id';
-        }
-
-        /* Connect to the database */
-        self::connect();
-
-        /* Get columns meta data */
-        $this->setMeta();
-
-        /* Configure model */
-        if ( is_null( $this->log_timestamp )) {
-            $this->log_timestamp = false;
-        }
-        if ( is_null( $this->soft_deletes )) {
-            $this->soft_deletes = false;
+    public function __construct() {
+        if ( is_null( self::$db ) ) {
+            self::$db = Database::getInstance();
         }
     }
 
-    /**
-     * Connect to the database
-     */
-    public static function connect()
-    {
-        if ( is_null( self::$_dbh ) ) {
-            $env = Env::getInstance();
-            $database = $env->database;
-
-            if ( is_null( $database ) || empty( $database ) ) {
-                throw new \Exception('No options for database defined in .env file.');
-            }
-
-            self::$_dbh = Database::getInstance( $database );
-            self::$_dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        }
-    }
-
-    /* *** Magic methods *** */
-    /**
-     * Set column value
-     */
-    public function __set( $key, $value ) 
-    {
-        $this->_data[ $key ] = $value;
-    }
-
-    /**
-     * Get column value
-     */
-    public function __get( $key )
-    {
-        if ( !array_key_exists( $key, $this->_data ) ) {
-            throw new \Exception('Atributo ' . $key . ' inexistente na tabela ' . $this->getTable() );
-        }
-
-        if ( array_key_exists( $key, $this->_meta ) ) {
-            switch ( $this->_meta[ $key ][ 'native_type' ] ) {
-                case 'integer':
-                    return (int) $this->_data[ $key ];
-                    break;
-    
-            }
-        }
-
-        return $this->_data[ $key ];
-    }
-
-    /**
-     * Check if column value exists
-     */
-    public function __isset( $key )
-    {
-        return isset( $this->_data[ $key ] );
-    }
-
-    /**
-     * Unset column value
-     */
-    public function __unset( $key ) 
-    {
-        if ( array_key_exists( $key, $this->_data ) ) {
-            unset( $this->_data[ $key ] );
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * When clone, do not copy the ID.
-     */
-    private function ___clone()
-    {
-        if ( array_key_exists( $this->_id, $this->_data ) ) {
-            unset( $this->_data[ $this->_id ] );
-        }
-    }
-
-    /* *** Auxiliary methods *** */
-
-    /**
-     * Get a copy of current record
-     */
-    private function copy()
-    {
-        $class = get_called_class();
-        $model = new $class;
-        $model = $class::find( $this->{$this->_id} );
-
-        return $model;
-    }
-
-    /**
-     * Get table name from class name.
-     */
-    private static function tableName()
-    {
-        $class = explode('\\', get_called_class());
-        $class_name = strtolower( array_pop( $class ) );
-        $table_name = Str::plural( $class_name );
-
-        return $table_name;
-    }
-
-    private function setMeta()
-    {
-        /* Extract Meta info from table */
-        $sql = new Sql( $this->getTable() );
-        $select = $sql->select()->limit(1)->get();
-
-        try {
-            $statement = self::$_dbh->query( $select );
-            $columns_count = $statement->columnCount();
-        } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $select );
-        }
-        $columns = [];
-
-        for ( $i = 0; $i < $columns_count; $i++ ) {
-            $columns[ $statement->getColumnMeta($i)['name'] ] = '';
-            $this->_meta[ $statement->getColumnMeta($i)['name'] ] = [
-                'type'          => $statement->getColumnMeta($i)['pdo_type'],
-                'native_type'   => $statement->getColumnMeta($i)['native_type'],
-                'flags'         => $statement->getColumnMeta($i)['flags'],
-                'len'           => $statement->getColumnMeta($i)['len'],
-                'precision'     => $statement->getColumnMeta($i)['precision'],
-            ];
-        }
-    }
-
-    public function getMeta()
-    {
-        return $this->_meta;
-    }
-
-    private static function columnRelated( $table )
-    {
-        // echo "{$table}: " . Str::singular( strtolower( $table ) ) . "_id" . PHP_EOL;
-        return Str::singular( strtolower( $table ) ) . "_id";
-    }
-
-    /**
-     * Set table name property (override)
-     */
-    public function setTable( $name )
-    {
-        $this->_table = $name;
-    }
-
-    /**
-     * Get table name from property.
-     */
     public function getTable()
     {
-        return $this->_table;
+        return $this->table;
     }
 
-    public function getId()
+    public function setTable($table)
     {
-        return $this->_id;
+        $this->table = $table;
     }
 
-    public function id()
+    public function setPrimaryKey($primaryKey)
     {
-        return $this->{$this->_id};
+        $this->primaryKey = $primaryKey;
     }
 
-    /**
-     * Setting and Getting Data
-     */
-    public function fromArray( $data )
+    public function getSql()
     {
-        $this->_data = $data;
+        $this->sql->model( null );  // remove model from sql, avoid infinite loop
+        return $this->sql->get();
     }
 
-    public function toArray()
+    public function setSql( $sql)
     {
-        return $this->_data;
+        $this->sql = $sql;
     }
 
-    public function fromJson( string $json )
+    public function setModel( $model )
     {
-        $this->fromArray( json_decode( $json ) );
+        $this->sql->model( $model );
     }
 
-    public function toJson()
+/*    public static function find( $primaryKey )
     {
-        return json_encode( $this->toArray() );
+        $obj = new static();
+        $obj->sql = new Sql( $obj->getTable() );
+        $obj->sql->select()->where( $obj->primaryKey, $primaryKey );
+        $obj->sql->model( $obj );
+        return $obj->sql->get();
+    }*/
+
+    public static function find($primaryKey)
+    {
+        $model = new static();
+        $model->sql = new Sql( $model->getTable() );
+
+        $select = $model->sql->select()->where( $model->primaryKey )->get();
+
+        return self::$db->selectPreparedSql( $select, get_class($model), [':' . $model->primaryKey => $primaryKey] );
     }
 
-    /**
-     * Frequent SQL functions
-     */
-    public static function fetchAll( $sql )
+    public static function findOrFail($primaryKey)
     {
-        try {
-            return self::$_dbh->fetchAll( $sql, get_called_class() );
-        } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $sql );
+        $model = new static();
+        $model->sql = new Sql( $model->getTable() );
+
+        $row = $model->find($primaryKey);
+        if ( !$row ) {
+            throw new \Exception("Record {$primaryKey} not found on table {$model->getTable()}");
         }
+        return $row;
     }
 
-    public static function fetch( $sql )
+    public static function all()
     {
-        try {
-            return self::$_dbh->fetch( $sql, get_called_class() );
-        } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $sql );
-        }
+        $model = new Static();
+        $model->sql = new Sql( $model->getTable() );
+
+        $select = $model->sql->select()->get();
+
+        return self::$db->selectAllPreparedSql( $select, get_class( $model ) );
     }
 
-    public static function fetchAssoc( $sql )
+    public function get()
     {
-        try {
-            return self::$_dbh->fetch( $sql );
-        } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $sql );
-        }
+        $select = $this->getSql();
+        $query = self::$db->query( $select );
+        return $query->fetchAll( \PDO::FETCH_CLASS, get_class($this) );
     }
 
-    public static function all( $columns = '*' )
+    public function first()
     {
-        self::connect();
-
-        $class = get_called_class();
-        $model = new $class;
-
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select( $columns )->get();
-
-        return self::fetchAll( $select );
+        $this->sql->limit(1);
+        $select = $this->getSql();
+        $query = self::$db->query( $select );
+        $query->setFetchMode(\PDO::FETCH_CLASS, get_class($this) );
+        return $query->fetch( \PDO::FETCH_CLASS, \PDO::FETCH_ORI_NEXT );
     }
 
-    public static function find( $id, $key = 'id' )
+    public static function __callStatic( $name, $arguments )
     {
-        self::connect();
-
-        $class = get_called_class();
-        $model = new $class;
-
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $key, $id )->get();
-
-        return self::fetch( $select );
+        $obj = new static();
+        $obj->sql = new Sql( $obj->getTable() );
+        $obj->sql->$name( ...$arguments );
+        $obj->sql->model( $obj );
+        return $obj->sql;
     }
 
-    /**
-     * Find a child relationship, one-to-one
-     */
-    public function hasOne( $model, $related_column = '' )
+    public function __call( $name, $arguments )
     {
-        $current = $this->copy();
-        
-        if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $current->getTable() );
+        $caller = get_called_class();
+
+        /* Prevent infinite loop */
+        if ( $caller == 'Slendie\Framework\Database\Sql' ) {
+            throw new \Exception('Call to undefined method ' . __CLASS__ . $name . '()');
         }
 
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $current->id() )->get();
-
-        // return self::fetch( $select );
-        $class = get_class( $model );
-        return $class::fetch( $select );
-    }
-
-    /**
-     * Find a parent relationship, one-to-one
-     */
-    public function belongsToOne( $model, $related_column = '' )
-    {
-        $current = $this->copy();
-        
-        if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $model->getTable() );
+        if ( is_null( $this->sql ) ) {
+            $this->sql = new Sql( $this->getTable() );
         }
-
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
-
-        // return self::fetch( $select );
-        $class = get_class( $model );
-        return $class::fetch( $select );
+        $this->sql->$name( ...$arguments );
+        $this->sql->model( $this);
+        return $this->sql;
     }
 
-    /**
-     * Find a child relationship, one-to-many
-     */
-    public function hasMany( $model, $related_column = '' )
+/*    public function fetch()
     {
-        $current = $this->copy();
-        
-        if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $current->getTable() );
+        $this->sth->setFetchMode( \PDO::FETCH_CLASS, get_class($this) );
+        return $this->sth->fetch();
+    }
+*/
+/*    public function __get( $name )
+    {
+        return $this->db->getAttribute( $name );
+    }
+*/
+/*    public static function __callStatic( $name, $arguments )
+    {
+        $model = new static();
+        return $model->$name( ...$arguments );
+    }
+
+    public function __call( $name, $arguments )
+    {
+        if ( is_null( $this->sql ) ) {
+            $this->sql = new Sql($this->table);
         }
+        $this->sql->$name( ...$arguments );
+        return $this;
+    }*/
 
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $related_column, $current->id() )->get();
-
-        // return self::fetchAll( $select );
-        $class = get_class( $model );
-        return $class::fetchAll( $select );
-    }
-
-    /**
-     * Find a parent relationship, one-to-many
-     */
-    public function belongsToMany( $model, $related_column )
-    {
-        $current = $this->copy();
-        
-        if ( empty( $related_column ) ) {
-            $related_column = self::columnRelated( $model->getTable() );
-        }
-
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select()->where( $model->getId() , $current->{$related_column} )->get();
-
-        // return self::fetchAll( $select );
-        $class = get_class( $model );
-        return $class::fetchAll( $select );
-    }
-
-    public static function prepare( $sql )
-    {
-        try {
-            return self::$_dbh->prepare( $sql );
-        } catch (\Exception $e) {
-            debug_print_backtrace();
-            dd( $sql );
-        }
-    }
-
-    public static function count()
-    {
-        $class = get_called_class();
-        $model = new $class;
-        $sql = new Sql( $model->getTable() );
-        $select = $sql->select('COUNT(*) as n_rows')->get();
-
-        $row = $model->fetch( $select );
-
-        if ( $row ) {
-            return $row->n_rows;
-        }
-        return false;
-    }
-
-    public function insert( $data )
-    {
-        if ( $this->log_timestamp ) {
-            $data['created_at'] = date('Y-m-d H:i:s');
-            $data['updated_at'] = date('Y-m-d H:i:s');
-        }
-
-        $sql = new Sql( $this->getTable() );
-        $sql->setPrepareMode();
-        $insert = $sql->insert( $data )->get();
-       
-        $dbh = self::prepare( $insert );
-        $res = $dbh->execute( $sql->values() );
-    }
-
-    public function update( $data )
-    {
-        if ( $this->log_timestamp ) {
-            $data['created_at'] = date('Y-m-d H:i:s');
-            $data['updated_at'] = date('Y-m-d H:i:s');
-        }
-
-        $sql = new Sql( $this->getTable() );
-        $sql->setPrepareMode();
-        $update = $sql->update( $data )->where( $this->_id, $this->_data[ $this->_id ] )->get();
-
-        $dbh = self::prepare( $update );
-        return $dbh->execute( $sql->values() );
-    }
-
-    public function delete()
-    {
-        if ( $this->soft_deletes ) {
-            $data = [
-                'deleted_at'    => date('Y-m-d H:i:s'),
-            ];
-            return $this->update( $data );
-        } else {
-            $sql = new Sql( $this->getTable() );
-            $sql->setPrepareMode();
-            $delete = $sql->delete()->where( $this->_id, $this->_data[ $this->_id ] )->get();
-
-            $dbh = self::prepare( $delete );
-            return $dbh->execute( $sql->values() );
-        }
-    }
-
-    public function save()
-    {
-        $data = $this->toArray();
-
-        if ( array_key_exists( $this->_id, $data ) ) {
-            unset( $data[ $this->_id ] );
-            return $this->update( $data );
-        } else {
-            return $this->insert( $data );
-        }
-    }
-
-    public function lastInsertId()
-    {
-        return self::$_dbh->lastInsertId();
-    }
 }
