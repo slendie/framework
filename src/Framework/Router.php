@@ -12,11 +12,59 @@ use ReflectionMethod;
 
 final class Router
 {
-    private array $routes;
+    private static ?Router $instance = null;
+    private static array $routes = [];
+    private array $instanceRoutes;
 
-    public function __construct(array $routes)
+    private function __construct(array $routes)
     {
-        $this->routes = $routes;
+        $this->instanceRoutes = $routes;
+        self::$routes = $routes;
+    }
+
+    /**
+     * Obtém a instância única do Router (Singleton)
+     *
+     * @param array $routes As rotas a serem carregadas (apenas na primeira chamada)
+     * @return Router A instância única do Router
+     */
+    public static function getInstance(array $routes = []): Router
+    {
+        if (self::$instance === null) {
+            // Se não foram fornecidas rotas, tenta carregar do arquivo de configuração
+            if (empty($routes) && defined('BASE_PATH')) {
+                $routesPath = BASE_PATH . '/config/routes.php';
+                if (file_exists($routesPath)) {
+                    $routes = require $routesPath;
+                }
+            }
+            self::$instance = new self($routes);
+        }
+        return self::$instance;
+    }
+
+    /**
+     * Reseta a instância do singleton (útil para testes)
+     */
+    public static function resetInstance(): void
+    {
+        self::$instance = null;
+        self::$routes = [];
+    }
+
+    /**
+     * Previne a clonagem da instância
+     */
+    private function __clone()
+    {
+    }
+
+    /**
+     * Previne a deserialização da instância
+     */
+    public function __wakeup()
+    {
+        throw new \Exception("Cannot unserialize singleton");
     }
 
     public function dispatch()
@@ -27,7 +75,7 @@ final class Router
         $method = $request->method();
         $path = $request->path();
 
-        foreach ($this->routes as $route) {
+        foreach ($this->instanceRoutes as $route) {
             if (mb_strtoupper($route['method']) !== mb_strtoupper($method)) {
                 continue;
             }
@@ -185,5 +233,33 @@ final class Router
         } catch (ReflectionException $e) {
             return [];
         }
+    }
+
+    /**
+     * Verifica se uma rota existe pelo nome
+     *
+     * @param string $name O nome da rota
+     * @return bool True se a rota existe, false caso contrário
+     */
+    public static function hasRoute(string $name): bool
+    {
+        // Se as rotas ainda não foram carregadas, tenta carregar
+        if (empty(self::$routes)) {
+            $routesPath = BASE_PATH . '/config/routes.php';
+            if (file_exists($routesPath)) {
+                self::$routes = require $routesPath;
+            } else {
+                return false;
+            }
+        }
+
+        // Procura a rota pelo nome
+        foreach (self::$routes as $route) {
+            if (isset($route['name']) && $route['name'] === $name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

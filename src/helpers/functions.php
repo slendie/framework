@@ -171,3 +171,16 @@ if (! function_exists('old')) {
         return $value;
     }
 }
+
+if (! function_exists('has_route')) {
+    /**
+     * Verifica se uma rota existe pelo nome
+     *
+     * @param string $name O nome da rota
+     * @return bool True se a rota existe, false caso contrário
+     */
+    function has_route(string $name): bool
+    {
+        return Slendie\Framework\Router::hasRoute($name);
+    }
+}
