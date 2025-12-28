@@ -231,772 +231,102 @@ final class Blade
         return $data[$varName] ?? null;
     }
 
-    /**
-     * Parse inline array expression
-     *
-     * Parses array literals like [1, 2, 3] or ['a', 'b', 'c'].
-     * Handles quoted strings, numbers, and respects nested quotes.
-     *
-     * @param string $expression The expression to parse (e.g., "[1, 2, 'a']")
-     * @return array|null Parsed array or null if not an array expression
-     */
-    private function parseInlineArray(string $expression): array|null
-    {
-        // Check if expression is an array literal
-        if (!preg_match('/^\s*\[(.*?)\]\s*$/', $expression, $matches)) {
-            return null;
-        }
-
-        $items = [];
-        $content = mb_trim($matches[1]);
-
-        if (empty($content)) {
-            return $items; // Empty array
-        }
-
-        // Split by comma, respecting quoted strings
-        $parts = $this->splitArrayExpression($content);
-
-        // Process each part
-        foreach ($parts as $part) {
-            $part = mb_trim($part);
-
-            // Remove quotes if present (handles both single and double quotes)
-            if ($this->isQuotedString($part)) {
-                $items[] = mb_substr($part, 1, -1);
-            } else {
-                // Numeric or variable - convert to appropriate type
-                $items[] = $this->parseArrayItem($part);
-            }
-        }
-
-        return $items;
-    }
 
     /**
-     * Split array expression by commas, respecting quoted strings
+     * Evaluate an expression using PHP's eval in a controlled environment
      *
-     * @param string $content The array content (without brackets)
-     * @return array Array of parts
-     */
-    private function splitArrayExpression(string $content): array
-    {
-        $parts = [];
-        $current = '';
-        $inQuotes = false;
-        $quoteChar = '';
-
-        for ($i = 0; $i < mb_strlen($content); $i++) {
-            $char = $content[$i];
-            $isEscaped = ($i > 0 && $content[$i - 1] === '\\');
-
-            // Handle quote characters
-            if (($char === '"' || $char === "'") && !$isEscaped) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-                $current .= $char;
-            }
-            // Handle comma separator (only when not in quotes)
-            elseif ($char === ',' && !$inQuotes) {
-                $parts[] = mb_trim($current);
-                $current = '';
-            } else {
-                $current .= $char;
-            }
-        }
-
-        // Add the last part if exists
-        if (!empty($current)) {
-            $parts[] = mb_trim($current);
-        }
-
-        return $parts;
-    }
-
-    /**
-     * Check if a string is quoted (single or double quotes)
-     *
-     * @param string $str The string to check
-     * @return bool True if the string is quoted
-     */
-    private function isQuotedString(string $str): bool
-    {
-        $len = mb_strlen($str);
-        if ($len < 2) {
-            return false;
-        }
-
-        return (($str[0] === '"' && $str[$len - 1] === '"') ||
-                ($str[0] === "'" && $str[$len - 1] === "'"));
-    }
-
-    /**
-     * Parse an array item (numeric or variable)
-     *
-     * @param string $part The part to parse
-     * @return mixed Parsed value (int, float, or string)
-     */
-    private function parseArrayItem(string $part): mixed
-    {
-        if (is_numeric($part)) {
-            // Convert to int or float as appropriate
-            // Check if the string contains a decimal point to determine type
-            if (strpos($part, '.') !== false) {
-                return (float) $part;
-            }
-            return (int) $part;
-        }
-
-        // Return as string (could be a variable name)
-        return $part;
-    }
-
-    /**
-     * Parse function call arguments
-     *
-     * Splits function arguments by comma, respecting quotes and nested parentheses.
-     *
-     * @param string $argsStr The arguments string
-     * @return array Array of argument strings
-     */
-    private function parseFunctionArguments(string $argsStr): array | null
-    {
-        $args = [];
-        $current = '';
-        $depth = 0;
-        $inQuotes = false;
-        $quoteChar = '';
-
-        for ($i = 0; $i < mb_strlen($argsStr); $i++) {
-            $char = $argsStr[$i];
-            $isEscaped = ($i > 0 && $argsStr[$i - 1] === '\\');
-
-            // Handle quotes
-            if (($char === '"' || $char === "'") && !$isEscaped) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-                $current .= $char;
-            }
-            // Handle parentheses (track nesting depth)
-            elseif ($char === '(' && !$inQuotes) {
-                $depth++;
-                $current .= $char;
-            } elseif ($char === ')' && !$inQuotes) {
-                if ($depth > 0) {
-                    $depth--;
-                }
-                $current .= $char;
-            }
-            // Handle comma separator (only at top level, not in quotes)
-            elseif ($char === ',' && !$inQuotes && $depth === 0) {
-                $args[] = mb_trim($current);
-                $current = '';
-            } else {
-                $current .= $char;
-            }
-        }
-
-        // Add the last argument if exists
-        if (mb_strlen(mb_trim($current)) > 0) {
-            $args[] = mb_trim($current);
-        }
-
-        return $args;
-    }
-
-    /**
-     * Evaluate an expression and return its value
-     *
-     * Supports:
-     * - String literals: 'string', "string"
-     * - Ternary operator: condition ? trueValue : falseValue
-     * - Inline arrays: [1, 2, 3]
-     * - Function calls: count($arr), array_key_exists('key', $arr), json_encode($data), route('name')
+     * Supports any valid PHP expression:
      * - Variables: $var, $var['key'], $var[0]
-     * - Constants: JSON_PRETTY_PRINT, etc.
+     * - Function calls: count($arr), has_route('name'), route('register')
+     * - Operators: ternary, comparison, logical, etc.
+     * - Arrays: [1, 2, 3], ['a' => 'b']
+     * - Constants: JSON_PRETTY_PRINT, true, false, null
      *
-     * @param string $expression The expression to evaluate
+     * @param string $expression The PHP expression to evaluate
      * @param array $data The data array containing variables
-     * @return mixed The evaluated value or null
+     * @return mixed The evaluated value
      */
     private function evaluateExpression(string $expression, array $data): mixed
     {
         $expression = mb_trim($expression);
-
-        // Handle string literals (quoted strings) - must be checked first
-        if ($this->isQuotedString($expression)) {
-            return mb_substr($expression, 1, -1);
-        }
-
-        // Handle ternary operator: condition ? trueValue : falseValue
-        $ternaryResult = $this->evaluateTernaryOperator($expression, $data);
-        if ($ternaryResult !== null) {
-            return $ternaryResult;
-        }
-
-        // Handle inline arrays
-        $array = $this->parseInlineArray($expression);
-        if ($array !== null) {
-            return $array;
-        }
-
-        // Handle function calls: functionName(arg1, arg2, ...)
-        $functionResult = $this->evaluateFunctionCall($expression, $data);
-        if ($functionResult !== null) {
-            return $functionResult;
-        }
-
-        // Handle constants (e.g., JSON_PRETTY_PRINT)
-        if (defined($expression)) {
-            return constant($expression);
-        }
-
-        // Handle variables with optional array access: $var['key'][0] or $var[$i]
-        $variableResult = $this->evaluateVariable($expression, $data);
-        if ($variableResult !== null) {
-            return $variableResult;
-        }
-
-        return null;
-    }
-
-    /**
-     * Evaluate ternary operator expression
-     *
-     * Handles expressions like: condition ? trueValue : falseValue
-     * Supports nested ternary operators and respects quotes and parentheses.
-     *
-     * @param string $expression The expression to evaluate
-     * @param array $data The data array
-     * @return mixed The evaluated value or null if not a ternary operator
-     */
-    private function evaluateTernaryOperator(string $expression, array $data): mixed
-    {
-        $len = mb_strlen($expression);
-        $questionPos = -1;
-        $colonPos = -1;
-        $depth = 0;
-        $inQuotes = false;
-        $quoteChar = '';
-
-        // Find the top-level ? operator (not inside quotes or parentheses)
-        for ($i = 0; $i < $len; $i++) {
-            $char = $expression[$i];
-            $isEscaped = ($i > 0 && $expression[$i - 1] === '\\');
-
-            // Handle quotes
-            if (($char === '"' || $char === "'") && !$isEscaped) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-            }
-            // Handle parentheses (track nesting depth)
-            elseif ($char === '(' && !$inQuotes) {
-                $depth++;
-            } elseif ($char === ')' && !$inQuotes) {
-                if ($depth > 0) {
-                    $depth--;
-                }
-            }
-            // Find ? at top level (not in quotes, depth 0)
-            elseif ($char === '?' && !$inQuotes && $depth === 0) {
-                $questionPos = $i;
-                break;
-            }
-        }
-
-        // If no ? found, it's not a ternary operator
-        if ($questionPos === -1) {
+        
+        // Extract variables from data array into current scope
+        // Use EXTR_OVERWRITE to ensure extracted variables take precedence
+        extract($data, EXTR_OVERWRITE);
+        
+        // Evaluate the expression safely
+        // Suppress warnings for undefined variables (common in templates)
+        try {
+            $result = @eval("return ({$expression});");
+            return $result;
+        } catch (\Throwable $e) {
+            // If evaluation fails, return null
             return null;
         }
-
-        // Find the matching : operator (for this ternary)
-        $ternaryDepth = 1; // Track nested ternary operators
-        for ($i = $questionPos + 1; $i < $len; $i++) {
-            $char = $expression[$i];
-            $isEscaped = ($i > 0 && $expression[$i - 1] === '\\');
-
-            // Handle quotes
-            if (($char === '"' || $char === "'") && !$isEscaped) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-            }
-            // Handle parentheses
-            elseif ($char === '(' && !$inQuotes) {
-                $depth++;
-            } elseif ($char === ')' && !$inQuotes) {
-                if ($depth > 0) {
-                    $depth--;
-                }
-            }
-            // Handle nested ternary operators
-            elseif ($char === '?' && !$inQuotes && $depth === 0) {
-                $ternaryDepth++;
-            }
-            // Find matching : for this ternary
-            elseif ($char === ':' && !$inQuotes && $depth === 0) {
-                $ternaryDepth--;
-                if ($ternaryDepth === 0) {
-                    $colonPos = $i;
-                    break;
-                }
-            }
-        }
-
-        // If no matching : found, it's not a valid ternary operator
-        if ($colonPos === -1) {
-            return null;
-        }
-
-        // Extract the three parts: condition, true value, false value
-        $condition = mb_trim(mb_substr($expression, 0, $questionPos));
-        $trueValue = mb_trim(mb_substr($expression, $questionPos + 1, $colonPos - ($questionPos + 1)));
-        $falseValue = mb_trim(mb_substr($expression, $colonPos + 1));
-
-        // Evaluate the condition
-        $conditionResult = $this->evaluateCondition($condition, $data);
-
-        // Return the appropriate value based on condition
-        if ($conditionResult) {
-            return $this->evaluateExpression($trueValue, $data);
-        } else {
-            return $this->evaluateExpression($falseValue, $data);
-        }
     }
 
-    /**
-     * Evaluate a function call expression
-     *
-     * Supports specific functions (count, array_key_exists, old) and generic PHP functions
-     * like json_encode, strlen, etc.
-     *
-     * @param string $expression The function call expression
-     * @param array $data The data array
-     * @return mixed Function result or null if not a function call
-     */
-    private function evaluateFunctionCall(string $expression, array $data): mixed
-    {
-        // Match function pattern: functionName(arg1, arg2, ...)
-        if (!preg_match('/^([a-z_]\w*)\s*\((.*)\)$/i', $expression, $matches)) {
-            return null;
-        }
 
-        $functionName = mb_strtolower($matches[1]);
-        $argsStr = $matches[2];
-        $args = $this->parseFunctionArguments($argsStr);
-
-        // Handle count() function
-        if ($functionName === 'count') {
-            $value = isset($args[0]) ? $this->evaluateExpression($args[0], $data) : null;
-            return is_array($value) ? count($value) : 0;
-        }
-
-        // Handle array_key_exists() function
-        if ($functionName === 'array_key_exists') {
-            return $this->evaluateArrayKeyExists($args, $data);
-        }
-
-        // Handle old() function for form validation
-        if ($functionName === 'old') {
-            return $this->evaluateOld($args, $data);
-        }
-
-        // Handle has_route() function
-        if ($functionName === 'has_route') {
-            $routeName = isset($args[0]) ? $this->evaluateExpression($args[0], $data) : null;
-            if ($routeName !== null && function_exists('has_route')) {
-                return has_route($routeName);
-            }
-            return false;
-        }
-
-        // Handle generic PHP functions (json_encode, strlen, etc.)
-        if (function_exists($functionName)) {
-            // Evaluate all arguments
-            $evaluatedArgs = [];
-            foreach ($args as $arg) {
-                $evaluatedArgs[] = $this->evaluateExpression($arg, $data);
-            }
-
-            // Call the function with evaluated arguments
-            try {
-                return call_user_func_array($functionName, $evaluatedArgs);
-            } catch (Exception $e) {
-                // If function call fails, return null
-                return null;
-            }
-        }
-
-        return null;
-    }
 
     /**
-     * Evaluate array_key_exists function call
+     * Evaluate a condition using PHP's eval in a controlled environment
      *
-     * @param array $args Function arguments
-     * @param array $data The data array
-     * @return bool True if key exists in array
-     */
-    private function evaluateArrayKeyExists(array $args, array $data): bool
-    {
-        $keyArg = $args[0] ?? null;
-        $arrArg = $args[1] ?? null;
-
-        if ($keyArg === null || $arrArg === null) {
-            return false;
-        }
-
-        // Parse key argument (could be quoted string or expression)
-        $key = null;
-        if ($this->isQuotedString($keyArg)) {
-            $key = mb_substr($keyArg, 1, -1);
-        } else {
-            $key = $this->evaluateExpression($keyArg, $data);
-        }
-
-        // Parse array argument
-        $arr = $this->evaluateExpression($arrArg, $data);
-
-        return is_array($arr) ? array_key_exists($key, $arr) : false;
-    }
-
-    /**
-     * Evaluate old() function call for form validation
-     *
-     * Retrieves old input values from session for form repopulation.
-     * Usage: old('field_name') or old('field_name', 'default')
-     *
-     * @param array $args Function arguments
-     * @param array $data The data array
-     * @return mixed Old input value or default/null
-     */
-    private function evaluateOld(array $args, array $data): mixed
-    {
-        $keyArg = $args[0] ?? null;
-        $defaultArg = $args[1] ?? null;
-
-        if ($keyArg === null) {
-            return null;
-        }
-
-        // Parse key argument (could be quoted string or expression)
-        $key = null;
-        if ($this->isQuotedString($keyArg)) {
-            $key = mb_substr($keyArg, 1, -1);
-        } else {
-            $key = $this->evaluateExpression($keyArg, $data);
-        }
-
-        // Get old input from session
-        $oldInput = $_SESSION['old_input'] ?? [];
-
-        if (isset($oldInput[$key])) {
-            return $oldInput[$key];
-        }
-
-        // Return default value if provided
-        if ($defaultArg !== null) {
-            return $this->evaluateExpression($defaultArg, $data);
-        }
-
-        return null;
-    }
-
-    /**
-     * Evaluate a variable expression with optional array access
-     *
-     * Supports: $var, $var['key'], $var[0], $var[$index]
-     *
-     * @param string $expression The variable expression
-     * @param array $data The data array
-     * @return mixed Variable value or null
-     */
-    private function evaluateVariable(string $expression, array $data): mixed
-    {
-        // Match variable pattern: $varName or varName followed by optional array access
-        if (!preg_match('/^\$?([A-Za-z_]\w*)(.*)$/', $expression, $matches)) {
-            return null;
-        }
-
-        $varName = $matches[1];
-        $rest = $matches[2];
-        $value = $this->getVariableValue($varName, $data);
-
-        // Handle array access: ['key'], ["key"], [0], [$index]
-        while (!empty($rest) && preg_match('/^\[\s*(?:\'([^\']*)\'|\"([^\"]*)\"|(\d+)|\$?([A-Za-z_]\w*))\s*\](.*)$/', $rest, $arrayMatches)) {
-            // Determine the key value
-            $key = null;
-            if ($arrayMatches[1] !== '') {
-                // Single-quoted string key
-                $key = $arrayMatches[1];
-            } elseif ($arrayMatches[2] !== '') {
-                // Double-quoted string key
-                $key = $arrayMatches[2];
-            } elseif (mb_strlen($arrayMatches[3]) > 0) {
-                // Numeric key
-                $key = (int)$arrayMatches[3];
-            } elseif ($arrayMatches[4] !== '') {
-                // Variable key
-                $key = $this->getVariableValue($arrayMatches[4], $data);
-            }
-
-            $rest = $arrayMatches[5];
-
-            // Access the array element if it exists
-            if (is_array($value) && array_key_exists($key, $value)) {
-                $value = $value[$key];
-            } else {
-                $value = null;
-                break;
-            }
-        }
-
-        return $value;
-    }
-
-    /**
-     * Find operator position in condition string
-     *
-     * Searches for logical operators (||, &&) respecting quotes and parentheses.
-     *
-     * @param string $condition The condition string
-     * @param string $operator The operator to find ('||' or '&&')
-     * @return int Position of operator or -1 if not found
-     */
-    private function findOperatorPosition(string $condition, string $operator): int
-    {
-        $len = mb_strlen($condition);
-        $operatorLen = mb_strlen($operator);
-        $pos = -1;
-        $depth = 0;
-        $inQuotes = false;
-        $quoteChar = '';
-
-        for ($i = 0; $i <= $len - $operatorLen; $i++) {
-            $char = $condition[$i];
-            $isEscaped = ($i > 0 && $condition[$i - 1] === '\\');
-
-            // Handle quotes
-            if (($char === '"' || $char === "'") && !$isEscaped) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-            }
-            // Handle parentheses (track nesting depth)
-            elseif ($char === '(' && !$inQuotes) {
-                $depth++;
-            } elseif ($char === ')' && !$inQuotes) {
-                if ($depth > 0) {
-                    $depth--;
-                }
-            }
-            // Check for operator at top level (not in quotes, depth 0)
-            if (!$inQuotes && $depth === 0) {
-                $substr = mb_substr($condition, $i, $operatorLen);
-                if ($substr === $operator) {
-                    $pos = $i;
-                    break;
-                }
-            }
-        }
-
-        return $pos;
-    }
-
-    /**
-     * Evaluate a comparison expression
-     *
-     * Handles operators: ===, !==, ==, !=, <=, >=, <, >
-     *
-     * @param string $leftExpr Left side expression
-     * @param string $operator Comparison operator
-     * @param string $rightExpr Right side expression
-     * @param array $data The data array
-     * @return bool Comparison result
-     */
-    private function evaluateComparison(string $leftExpr, string $operator, string $rightExpr, array $data): mixed
-    {
-        $left = $this->evaluateExpression($leftExpr, $data);
-        $right = $this->parseRightExpression($rightExpr, $data);
-
-        // Strict comparisons
-        if ($operator === '===') {
-            return $left === $right;
-        }
-        if ($operator === '!==') {
-            return $left !== $right;
-        }
-
-        // Loose comparisons
-        if ($operator === '==') {
-            return $left === $right;
-        }
-        if ($operator === '!=') {
-            return $left !== $right;
-        }
-
-        // Numeric comparisons
-        return $this->evaluateNumericComparison($left, $right, $operator);
-    }
-
-    /**
-     * Parse the right side of a comparison expression
-     *
-     * Handles quoted strings, numbers, and variable expressions.
-     *
-     * @param string $rightExpr The right expression
-     * @param array $data The data array
-     * @return mixed Parsed value
-     */
-    private function parseRightExpression(string $rightExpr, array $data): mixed
-    {
-        $rightExpr = mb_trim($rightExpr);
-
-        // Check if it's a quoted string
-        if ($this->isQuotedString($rightExpr)) {
-            return mb_substr($rightExpr, 1, -1);
-        }
-
-        // Check if it's a number
-        if (is_numeric($rightExpr)) {
-            // Check if it's an integer (no decimal point)
-            if (strpos($rightExpr, '.') === false && strpos($rightExpr, 'e') === false && strpos($rightExpr, 'E') === false) {
-                return (int) $rightExpr;
-            }
-            return (float) $rightExpr;
-        }
-
-        // Try to evaluate as expression
-        $evaluated = $this->evaluateExpression($rightExpr, $data);
-        return $evaluated !== null ? $evaluated : $rightExpr;
-    }
-
-    /**
-     * Evaluate numeric comparison (<, >, <=, >=)
-     *
-     * Converts values to numbers for comparison, or strings if not numeric.
-     *
-     * @param mixed $left Left value
-     * @param mixed $right Right value
-     * @param string $operator Comparison operator
-     * @return bool Comparison result
-     */
-    private function evaluateNumericComparison(mixed $left, mixed $right, string $operator): mixed
-    {
-        // Convert to numbers if both are numeric
-        if (is_numeric($left) && is_numeric($right)) {
-            $leftNum = ((int) $left === $left) ? (int) $left : (float) $left;
-            $rightNum = ((int) $right === $right) ? (int) $right : (float) $right;
-        } else {
-            // Convert to strings for comparison
-            $leftNum = is_scalar($left) ? (string)$left : '';
-            $rightNum = is_scalar($right) ? (string)$right : '';
-        }
-
-        switch ($operator) {
-            case '<':
-                return $leftNum < $rightNum;
-            case '>':
-                return $leftNum > $rightNum;
-            case '<=':
-                return $leftNum <= $rightNum;
-            case '>=':
-                return $leftNum >= $rightNum;
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * Evaluate a condition expression
-     *
-     * Supports:
-     * - Logical operators: ||, &&
-     * - Negation: !
+     * Supports any valid PHP condition:
      * - Comparisons: ===, !==, ==, !=, <=, >=, <, >
+     * - Logical operators: ||, &&, and, or, xor
+     * - Negation: !
      * - Variables: $var
-     * - Function calls
+     * - Function calls: has_route('name'), isset($var), empty($arr)
+     * - Complex expressions: ($a && $b) || ($c === $d)
      *
-     * @param string $condition The condition to evaluate
+     * @param string $condition The PHP condition to evaluate
      * @param array $data The data array
      * @return bool The condition result
      */
-    private function evaluateCondition(string $condition, array $data): mixed
+    private function evaluateCondition(string $condition, array $data): bool
     {
         $condition = mb_trim($condition);
-
-        // Remove outer parentheses if present
-        $condition = preg_replace('/^\((.*)\)$/', '$1', $condition);
-        $condition = mb_trim($condition);
-
-        // Handle logical OR operator (||) - lowest precedence
-        $orPos = $this->findOperatorPosition($condition, '||');
-        if ($orPos !== -1) {
-            $left = mb_substr($condition, 0, $orPos);
-            $right = mb_substr($condition, $orPos + 2);
-            return $this->evaluateCondition($left, $data) || $this->evaluateCondition($right, $data);
+        
+        // Handle empty condition
+        if ($condition === '') {
+            return false;
         }
-
-        // Handle logical AND operator (&&) - higher precedence than OR
-        $andPos = $this->findOperatorPosition($condition, '&&');
-        if ($andPos !== -1) {
-            $left = mb_substr($condition, 0, $andPos);
-            $right = mb_substr($condition, $andPos + 2);
-            return $this->evaluateCondition($left, $data) && $this->evaluateCondition($right, $data);
-        }
-
-        // Handle negation operator (!)
-        if (preg_match('/^!\s*(.+)$/', $condition, $matches)) {
-            return !$this->evaluateCondition($matches[1], $data);
-        }
-
-        // Handle simple variable check: $var (truthy check)
-        if (preg_match('/^\$?(\w+)$/', $condition, $matches)) {
-            $var = $this->getVariableValue($matches[1], $data);
-            return $var && $var !== '' && $var !== 0 && $var !== false && (!is_array($var) || !empty($var));
-        }
-
-        // Handle comparison operators: ===, !==, ==, !=, <=, >=, <, >
-        if (preg_match('/^(.*?)\s*(===|!==|==|!=|<=|>=|<|>)\s*(.*?)$/', $condition, $matches)) {
-            $leftExpr = mb_trim($matches[1]);
-            $operator = $matches[2];
-            $rightExpr = mb_trim($matches[3]);
-            return $this->evaluateComparison($leftExpr, $operator, $rightExpr, $data);
-        }
-
-        // Handle function calls
-        if (preg_match('/^([a-z_]\w*)\s*\((.*)\)$/i', $condition, $funcMatch)) {
-            $val = $this->evaluateExpression($condition, $data);
-            if (is_bool($val)) {
-                return $val;
+        
+        // Extract variables from data array into current scope
+        // Use EXTR_OVERWRITE to ensure extracted variables take precedence
+        extract($data, EXTR_OVERWRITE);
+        
+        // Evaluate the condition safely
+        // Suppress warnings for undefined variables (common in templates)
+        try {
+            // Ensure the eval code ends with semicolon for proper parsing
+            $evalCode = "return ({$condition});";
+            $result = @eval($evalCode);
+            
+            // eval() returns null if there was a parse error
+            // Since we always have a return statement, null indicates an error
+            // We need to distinguish between null (error) and false (valid result)
+            if ($result === null) {
+                // Try without @ to see if there's an actual error
+                // If it's a parse error, it will throw an exception
+                try {
+                    $result = eval($evalCode);
+                    // If we get here, eval succeeded but returned null
+                    // This shouldn't happen with our return statement, but handle it
+                    if ($result === null) {
+                        return false;
+                    }
+                } catch (\ParseError $e) {
+                    // Parse error - condition is invalid
+                    return false;
+                }
             }
-            return $val ? true : false;
+            
+            // Convert to boolean
+            return (bool) $result;
+        } catch (\Throwable $e) {
+            // If evaluation fails, return false
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -1113,7 +443,7 @@ final class Blade
         $itemVar = null;
         $keyVar = null;
 
-        // Pattern 1: @foreach($array as $item) or @foreach($array as $key => $item)
+        // Pattern: @foreach($array as $item) or @foreach($array as $key => $item)
         if (preg_match('/^@foreach\s*\((.+)\)$/', $header, $matches)) {
             $expression = mb_trim($matches[1]);
 
@@ -1129,22 +459,8 @@ final class Blade
                     $itemVar = $exprMatches[2];
                 }
 
-                // Try to parse as inline array first, then evaluate as expression
-                $arrayVar = $this->parseInlineArray($arrayExpr);
-                if ($arrayVar === null) {
-                    $arrayVar = $this->evaluateExpression($arrayExpr, $data);
-                }
-            }
-        }
-        // Pattern 2: @foreach arrayVar as itemVar or @foreach arrayVar as keyVar => itemVar
-        elseif (preg_match('/^@foreach\s*(\w+)\s+as\s+(\w+)(?:\s*=>\s*(\w+))?$/', $header, $exprMatches)) {
-            $arrayVar = $this->getVariableValue($exprMatches[1], $data);
-
-            if (!empty($exprMatches[3])) {
-                $keyVar = $exprMatches[2];
-                $itemVar = $exprMatches[3];
-            } else {
-                $itemVar = $exprMatches[2];
+                // Evaluate the array expression using eval
+                $arrayVar = $this->evaluateExpression($arrayExpr, $data);
             }
         }
 
@@ -1688,10 +1004,10 @@ final class Blade
             $assets = [];
 
             if (preg_match('/^\[(.*)\]$/', $firstMatch, $arrayMatches)) {
-                // It's an array - parse the array content
+                // It's an array - evaluate it using eval
                 $arrayContent = $arrayMatches[1];
-                $parsedArray = $this->parseInlineArray('[' . $arrayContent . ']');
-                if ($parsedArray !== null) {
+                $parsedArray = $this->evaluateExpression('[' . $arrayContent . ']', $data);
+                if (is_array($parsedArray)) {
                     $assets = $parsedArray;
                 }
             } else {

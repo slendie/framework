@@ -245,11 +245,13 @@ final class Router
     {
         // Usa self::$routes se disponível (definido quando Router é inicializado)
         // Mas se estiver vazio, tenta carregar do arquivo diretamente (como a função route() faz)
-        if (empty(self::$routes)) {
+        $routes = self::$routes;
+        if (empty($routes)) {
             if (defined('BASE_PATH')) {
                 $routesPath = BASE_PATH . '/config/routes.php';
                 if (file_exists($routesPath)) {
-                    self::$routes = require $routesPath;
+                    $routes = require $routesPath;
+                    self::$routes = $routes;
                 } else {
                     return false;
                 }
@@ -259,7 +261,7 @@ final class Router
         }
 
         // Procura a rota pelo nome
-        foreach (self::$routes as $route) {
+        foreach ($routes as $route) {
             if (isset($route['name']) && $route['name'] === $name) {
                 return true;
             }
