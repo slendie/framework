@@ -620,6 +620,15 @@ final class Blade
             return $this->evaluateOld($args, $data);
         }
 
+        // Handle has_route() function
+        if ($functionName === 'has_route') {
+            $routeName = isset($args[0]) ? $this->evaluateExpression($args[0], $data) : null;
+            if ($routeName !== null && function_exists('has_route')) {
+                return has_route($routeName);
+            }
+            return false;
+        }
+
         // Handle generic PHP functions (json_encode, strlen, etc.)
         if (function_exists($functionName)) {
             // Evaluate all arguments

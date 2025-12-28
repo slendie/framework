@@ -243,11 +243,16 @@ final class Router
      */
     public static function hasRoute(string $name): bool
     {
-        // Se as rotas ainda não foram carregadas, tenta carregar
+        // Usa self::$routes se disponível (definido quando Router é inicializado)
+        // Mas se estiver vazio, tenta carregar do arquivo diretamente (como a função route() faz)
         if (empty(self::$routes)) {
-            $routesPath = BASE_PATH . '/config/routes.php';
-            if (file_exists($routesPath)) {
-                self::$routes = require $routesPath;
+            if (defined('BASE_PATH')) {
+                $routesPath = BASE_PATH . '/config/routes.php';
+                if (file_exists($routesPath)) {
+                    self::$routes = require $routesPath;
+                } else {
+                    return false;
+                }
             } else {
                 return false;
             }
