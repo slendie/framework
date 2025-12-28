@@ -127,3 +127,47 @@ if (! function_exists('app')) {
         return $instance;
     }
 }
+
+if (! function_exists('old')) {
+    /**
+     * Get old input value from session (flash data)
+     *
+     * Retrieves a value from the old input stored in session, which is typically
+     * set when a form submission fails validation. The value is automatically
+     * removed from session after being retrieved (flash behavior).
+     *
+     * @param string $key The input key to retrieve
+     * @param mixed $default The default value if the key doesn't exist
+     * @return mixed The old input value, default value, or empty string
+     */
+    function old(string $key, mixed $default = null)
+    {
+        // Garante que a sessão esteja iniciada
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Verifica se existe old_input na sessão
+        if (!isset($_SESSION['old_input']) || !is_array($_SESSION['old_input'])) {
+            return $default ?? '';
+        }
+
+        // Verifica se a chave existe
+        if (!isset($_SESSION['old_input'][$key])) {
+            return $default ?? '';
+        }
+
+        // Recupera o valor
+        $value = $_SESSION['old_input'][$key];
+
+        // Remove o valor da sessão (comportamento flash)
+        unset($_SESSION['old_input'][$key]);
+
+        // Se old_input ficou vazio, remove o array completo
+        if (empty($_SESSION['old_input'])) {
+            unset($_SESSION['old_input']);
+        }
+
+        return $value;
+    }
+}

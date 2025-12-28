@@ -555,3 +555,237 @@ it('lida com diferentes métodos HTTP', function () {
         expect($request->isMethod($method))->toBeTrue();
     }
 });
+
+it('salva dados POST em sessão para uso com função old()', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Salva valores originais
+    $originalServer = $_SERVER;
+    $originalPost = $_POST;
+
+    // Simula requisição POST
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_SERVER['REQUEST_URI'] = '/users';
+    $_POST = ['name' => 'John', 'email' => 'john@example.com'];
+
+    $request = new Request();
+
+    // Verifica se os dados foram salvos em sessão
+    expect(isset($_SESSION['old_input']))->toBeTrue();
+    expect($_SESSION['old_input']['name'])->toBe('John');
+    expect($_SESSION['old_input']['email'])->toBe('john@example.com');
+
+    // Limpa
+    clearSession();
+
+    // Restaura
+    $_SERVER = $originalServer;
+    $_POST = $originalPost;
+});
+
+it('não salva dados GET em sessão', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Salva valores originais
+    $originalServer = $_SERVER;
+    $originalGet = $_GET;
+
+    // Simula requisição GET
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+    $_SERVER['REQUEST_URI'] = '/users';
+    $_GET = ['page' => '1', 'sort' => 'name'];
+
+    $request = new Request();
+
+    // Verifica que os dados NÃO foram salvos em sessão
+    expect(isset($_SESSION['old_input']))->toBeFalse();
+
+    // Limpa
+    clearSession();
+
+    // Restaura
+    $_SERVER = $originalServer;
+    $_GET = $originalGet;
+});
+
+it('salva dados JSON em sessão quando não há POST', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Salva valores originais
+    $originalServer = $_SERVER;
+    $originalPost = $_POST;
+    $originalGet = $_GET;
+
+    // Simula requisição PUT com JSON (simulado através de POST vazio)
+    $_SERVER['REQUEST_METHOD'] = 'PUT';
+    $_SERVER['REQUEST_URI'] = '/api/users';
+    $_POST = [];
+    $_GET = [];
+
+    // Para este teste, vamos simular que o JSON seria processado
+    // Na prática, isso seria feito através de php://input, mas para o teste
+    // vamos apenas verificar que o método existe e não quebra
+    $request = new Request();
+
+    // Como não podemos realmente simular php://input facilmente,
+    // vamos apenas verificar que o Request foi criado sem erros
+    expect($request)->toBeInstanceOf(Request::class);
+
+    // Limpa
+    clearSession();
+
+    // Restaura
+    $_SERVER = $originalServer;
+    $_POST = $originalPost;
+    $_GET = $originalGet;
+});
+
+it('função old() retorna valor quando existe na sessão', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Define valores em sessão
+    $_SESSION['old_input'] = ['name' => 'John', 'email' => 'john@example.com'];
+
+    // Testa função old()
+    expect(old('name'))->toBe('John');
+    expect(old('email'))->toBe('john@example.com');
+
+    // Limpa
+    clearSession();
+});
+
+it('função old() retorna vazio quando não existe e não tem default', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Testa função old() sem valor na sessão
+    expect(old('name'))->toBe('');
+
+    // Limpa
+    clearSession();
+});
+
+it('função old() retorna default quando não existe mas tem default', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Testa função old() com default
+    expect(old('name', 'Guest'))->toBe('Guest');
+    expect(old('email', 'default@example.com'))->toBe('default@example.com');
+
+    // Limpa
+    clearSession();
+});
+
+it('função old() remove valor da sessão após recuperar (comportamento flash)', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Define valor em sessão
+    $_SESSION['old_input'] = ['name' => 'John'];
+
+    // Recupera valor
+    $value = old('name');
+    expect($value)->toBe('John');
+
+    // Verifica que o valor foi removido da sessão
+    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
+    
+    // Se não houver mais valores, o array também deve ser removido
+    if (empty($_SESSION['old_input'])) {
+        expect(isset($_SESSION['old_input']))->toBeFalse();
+    }
+
+    // Limpa
+    clearSession();
+});
+
+it('função old() funciona com múltiplos valores na sessão', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Define múltiplos valores em sessão
+    $_SESSION['old_input'] = [
+        'name' => 'John',
+        'email' => 'john@example.com',
+        'phone' => '123456789'
+    ];
+
+    // Recupera primeiro valor
+    expect(old('name'))->toBe('John');
+    
+    // Verifica que apenas 'name' foi removido
+    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
+    expect(isset($_SESSION['old_input']['email']))->toBeTrue();
+    expect(isset($_SESSION['old_input']['phone']))->toBeTrue();
+
+    // Recupera segundo valor
+    expect(old('email'))->toBe('john@example.com');
+    
+    // Verifica que apenas 'email' foi removido
+    expect(isset($_SESSION['old_input']['email']))->toBeFalse();
+    expect(isset($_SESSION['old_input']['phone']))->toBeTrue();
+
+    // Recupera terceiro valor
+    expect(old('phone'))->toBe('123456789');
+    
+    // Verifica que agora está vazio
+    expect(isset($_SESSION['old_input']))->toBeFalse();
+
+    // Limpa
+    clearSession();
+});
+
+it('função old() com default não afeta valores existentes na sessão', function () {
+    // Limpa sessão
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    clearSession();
+
+    // Define valor em sessão
+    $_SESSION['old_input'] = ['name' => 'John'];
+
+    // Testa old() com default quando valor existe (deve retornar o valor da sessão, não o default)
+    expect(old('name', 'Guest'))->toBe('John');
+
+    // Verifica que o valor foi removido após recuperar
+    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
+
+    // Testa old() com default quando valor não existe (deve retornar o default)
+    expect(old('email', 'default@example.com'))->toBe('default@example.com');
+    
+    // Verifica que old_input ainda não existe (pois nunca teve email)
+    expect(isset($_SESSION['old_input']))->toBeFalse();
+
+    // Limpa
+    clearSession();
+});

@@ -419,6 +419,7 @@ final class Blade
      *
      * Supports:
      * - String literals: 'string', "string"
+     * - Ternary operator: condition ? trueValue : falseValue
      * - Inline arrays: [1, 2, 3]
      * - Function calls: count($arr), array_key_exists('key', $arr), json_encode($data), route('name')
      * - Variables: $var, $var['key'], $var[0]
@@ -435,6 +436,12 @@ final class Blade
         // Handle string literals (quoted strings) - must be checked first
         if ($this->isQuotedString($expression)) {
             return mb_substr($expression, 1, -1);
+        }
+
+        // Handle ternary operator: condition ? trueValue : falseValue
+        $ternaryResult = $this->evaluateTernaryOperator($expression, $data);
+        if ($ternaryResult !== null) {
+            return $ternaryResult;
         }
 
         // Handle inline arrays
@@ -461,6 +468,119 @@ final class Blade
         }
 
         return null;
+    }
+
+    /**
+     * Evaluate ternary operator expression
+     *
+     * Handles expressions like: condition ? trueValue : falseValue
+     * Supports nested ternary operators and respects quotes and parentheses.
+     *
+     * @param string $expression The expression to evaluate
+     * @param array $data The data array
+     * @return mixed The evaluated value or null if not a ternary operator
+     */
+    private function evaluateTernaryOperator(string $expression, array $data): mixed
+    {
+        $len = mb_strlen($expression);
+        $questionPos = -1;
+        $colonPos = -1;
+        $depth = 0;
+        $inQuotes = false;
+        $quoteChar = '';
+
+        // Find the top-level ? operator (not inside quotes or parentheses)
+        for ($i = 0; $i < $len; $i++) {
+            $char = $expression[$i];
+            $isEscaped = ($i > 0 && $expression[$i - 1] === '\\');
+
+            // Handle quotes
+            if (($char === '"' || $char === "'") && !$isEscaped) {
+                if (!$inQuotes) {
+                    $inQuotes = true;
+                    $quoteChar = $char;
+                } elseif ($char === $quoteChar) {
+                    $inQuotes = false;
+                    $quoteChar = '';
+                }
+            }
+            // Handle parentheses (track nesting depth)
+            elseif ($char === '(' && !$inQuotes) {
+                $depth++;
+            } elseif ($char === ')' && !$inQuotes) {
+                if ($depth > 0) {
+                    $depth--;
+                }
+            }
+            // Find ? at top level (not in quotes, depth 0)
+            elseif ($char === '?' && !$inQuotes && $depth === 0) {
+                $questionPos = $i;
+                break;
+            }
+        }
+
+        // If no ? found, it's not a ternary operator
+        if ($questionPos === -1) {
+            return null;
+        }
+
+        // Find the matching : operator (for this ternary)
+        $ternaryDepth = 1; // Track nested ternary operators
+        for ($i = $questionPos + 1; $i < $len; $i++) {
+            $char = $expression[$i];
+            $isEscaped = ($i > 0 && $expression[$i - 1] === '\\');
+
+            // Handle quotes
+            if (($char === '"' || $char === "'") && !$isEscaped) {
+                if (!$inQuotes) {
+                    $inQuotes = true;
+                    $quoteChar = $char;
+                } elseif ($char === $quoteChar) {
+                    $inQuotes = false;
+                    $quoteChar = '';
+                }
+            }
+            // Handle parentheses
+            elseif ($char === '(' && !$inQuotes) {
+                $depth++;
+            } elseif ($char === ')' && !$inQuotes) {
+                if ($depth > 0) {
+                    $depth--;
+                }
+            }
+            // Handle nested ternary operators
+            elseif ($char === '?' && !$inQuotes && $depth === 0) {
+                $ternaryDepth++;
+            }
+            // Find matching : for this ternary
+            elseif ($char === ':' && !$inQuotes && $depth === 0) {
+                $ternaryDepth--;
+                if ($ternaryDepth === 0) {
+                    $colonPos = $i;
+                    break;
+                }
+            }
+        }
+
+        // If no matching : found, it's not a valid ternary operator
+        if ($colonPos === -1) {
+            return null;
+        }
+
+        // Extract the three parts: condition, true value, false value
+        $condition = mb_trim(mb_substr($expression, 0, $questionPos));
+        $trueValue = mb_trim(mb_substr($expression, $questionPos + 1, $colonPos - ($questionPos + 1)));
+        $falseValue = mb_trim(mb_substr($expression, $colonPos + 1));
+
+        // Evaluate the condition
+        $conditionResult = $this->evaluateCondition($condition, $data);
+
+        // Return the appropriate value based on condition
+        if ($conditionResult) {
+            return $this->evaluateExpression($trueValue, $data);
+        } else {
+            return $this->evaluateExpression($falseValue, $data);
+        }
     }
 
     /**

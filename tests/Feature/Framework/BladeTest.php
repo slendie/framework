@@ -145,6 +145,17 @@ it('interpreta if else', function () {
     expect($html2)->toContain('off');
 });
 
+it('interpreta echo com if inline', function () {
+    $blade = new Blade(dirname(__DIR__) . '/Views/views');
+    $html1 = $blade->render('test_echo_if_inline', ['is_error' => true]);
+    expect($html1)->toContain('text-red-600');
+    expect($html1)->not->toContain('text-green-600');
+    $html2 = $blade->render('test_echo_if_inline', ['is_error' => false]);
+    expect($html2)->toContain('Sucesso');
+    expect($html2)->not->toContain('Erro');
+});
+
+
 it('renderiza @if com comparação', function () {
     $tempDir = createTempViewsDir();
     $templateFile = $tempDir . '/if_compare.blade.php';

@@ -34,6 +34,9 @@ final class Request
         $this->files = $_FILES ?? [];
         $this->headers = $this->getHeaders();
         $this->input = array_merge($this->query, $this->post);
+
+        // Salva os valores submetidos em sessão para uso com a função old()
+        $this->saveInputToSession();
     }
 
     public function method(): string
@@ -144,6 +147,30 @@ final class Request
             }
         }
         return $headers;
+    }
+
+    /**
+     * Salva os valores de input (POST/JSON) em sessão para uso com a função old()
+     * Apenas salva para métodos que normalmente enviam dados (POST, PUT, PATCH, DELETE)
+     */
+    private function saveInputToSession(): void
+    {
+        // Apenas salva em sessão para métodos que enviam dados
+        if (!in_array($this->method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+            return;
+        }
+
+        // Garante que a sessão esteja iniciada
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Salva os dados de input em sessão (POST ou JSON, priorizando POST)
+        $dataToSave = !empty($this->post) ? $this->post : $this->json;
+        
+        if (!empty($dataToSave)) {
+            $_SESSION['old_input'] = $dataToSave;
+        }
     }
 
     /**

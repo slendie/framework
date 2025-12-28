@@ -1,1 +1,4 @@
 /vendor
+
+# Tests databases
+test_*.sqlite
