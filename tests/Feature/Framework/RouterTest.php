@@ -13,18 +13,23 @@ if (!defined('BASE_PATH')) {
 $autoload_path = BASE_PATH . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 require_once $autoload_path;
 
+// Reseta a instância do singleton antes de cada teste
+beforeEach(function () {
+    Router::resetInstance();
+});
+
 it('inicializa com array de rotas', function () {
     $routes = [
         ['method' => 'GET', 'path' => '/', 'handler' => 'tests\TestController@index']
     ];
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
     expect($router)->toBeInstanceOf(Router::class);
 });
 
 it('parseRoutePattern retorna regex e nomes de parâmetros para rota com parâmetro', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('parseRoutePattern');
@@ -41,7 +46,7 @@ it('parseRoutePattern retorna regex e nomes de parâmetros para rota com parâme
 
 it('parseRoutePattern retorna regex para rota sem parâmetros', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('parseRoutePattern');
@@ -56,7 +61,7 @@ it('parseRoutePattern retorna regex para rota sem parâmetros', function () {
 
 it('parseRoutePattern extrai múltiplos parâmetros', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('parseRoutePattern');
@@ -71,7 +76,7 @@ it('parseRoutePattern extrai múltiplos parâmetros', function () {
 
 it('matchRoute retorna array vazio para rota exata sem parâmetros', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -85,7 +90,7 @@ it('matchRoute retorna array vazio para rota exata sem parâmetros', function ()
 
 it('matchRoute retorna null para rota que não corresponde', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -98,7 +103,7 @@ it('matchRoute retorna null para rota que não corresponde', function () {
 
 it('matchRoute extrai parâmetros de rota com um parâmetro', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -113,7 +118,7 @@ it('matchRoute extrai parâmetros de rota com um parâmetro', function () {
 
 it('matchRoute extrai múltiplos parâmetros', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -130,7 +135,7 @@ it('matchRoute extrai múltiplos parâmetros', function () {
 
 it('matchRoute retorna null quando path não corresponde ao padrão', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -143,7 +148,7 @@ it('matchRoute retorna null quando path não corresponde ao padrão', function (
 
 it('getMethodParameters retorna parâmetros do método', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('getMethodParameters');
@@ -157,7 +162,7 @@ it('getMethodParameters retorna parâmetros do método', function () {
 
 it('getMethodParameters retorna array vazio para método sem parâmetros', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('getMethodParameters');
@@ -171,7 +176,7 @@ it('getMethodParameters retorna array vazio para método sem parâmetros', funct
 
 it('getMethodParameters retorna array vazio quando método não existe', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('getMethodParameters');
@@ -196,7 +201,7 @@ it('dispatch chama handler para rota exata', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -220,7 +225,7 @@ it('dispatch chama handler com parâmetros de rota', function () {
 
     $response = setupRequest('GET', '/users/123');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -246,7 +251,7 @@ it('dispatch chama handler com múltiplos parâmetros', function () {
 
     $response = setupRequest('GET', '/users/123/edit/update');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -271,7 +276,7 @@ it('dispatch retorna 404 quando rota não é encontrada', function () {
 
     $response = setupRequest('GET', '/non-existent');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -298,7 +303,7 @@ it('dispatch verifica método HTTP', function () {
     $response = setupRequest('GET', '/users');
     $original = $response['original'];
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -332,7 +337,7 @@ it('dispatch é case-insensitive para método HTTP', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -358,7 +363,7 @@ it('dispatch aceita handler como array', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -382,7 +387,7 @@ it('dispatch aceita handler como array com string de classe', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -406,7 +411,7 @@ it('dispatch aplica WebMiddleware', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -431,7 +436,7 @@ it('dispatch passa apenas parâmetros que o método espera', function () {
 
     $response = setupRequest('GET', '/users/123/posts/456');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -458,7 +463,7 @@ it('dispatch passa parâmetros na ordem correta', function () {
 
     $response = setupRequest('GET', '/users/123/edit/update');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -485,7 +490,7 @@ it('dispatch retorna resultado do handler', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $result = $router->dispatch();
@@ -514,7 +519,7 @@ it('dispatch processa primeira rota que corresponde', function () {
 
     $response = setupRequest('GET', '/users');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -545,7 +550,7 @@ it('dispatch ignora rotas com método diferente', function () {
 
     $response = setupRequest('GET', '/users');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -574,7 +579,7 @@ it('dispatch ignora rotas com path diferente', function () {
 
     $response = setupRequest('GET', '/users');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -599,7 +604,7 @@ it('dispatch lida com rotas sem middlewares', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -621,7 +626,7 @@ it('dispatch lida com handler que não é string nem array', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -644,7 +649,7 @@ it('dispatch lida com handler string sem @', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -658,7 +663,7 @@ it('dispatch lida com handler string sem @', function () {
 
 it('parseRoutePattern escapa caracteres especiais no path', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('parseRoutePattern');
@@ -673,7 +678,7 @@ it('parseRoutePattern escapa caracteres especiais no path', function () {
 
 it('matchRoute lida com path que termina com barra', function () {
     $routes = [];
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     $reflection = new ReflectionClass($router);
     $method = $reflection->getMethod('matchRoute');
@@ -699,7 +704,7 @@ it('dispatch lida com rota na raiz', function () {
 
     $response = setupRequest('GET', '/');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -723,7 +728,7 @@ it('dispatch lida com parâmetros com caracteres especiais', function () {
 
     $response = setupRequest('GET', '/users/123-abc');
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -760,7 +765,7 @@ it('dispatch lida com múltiplas rotas na mesma lista', function () {
     $response = setupRequest('GET', '/users');
     $original = $response['original'];
 
-    $router = new Router($routes);
+    $router = Router::getInstance($routes);
 
     ob_start();
     $router->dispatch();
@@ -789,4 +794,218 @@ it('dispatch lida com múltiplas rotas na mesma lista', function () {
     expect(TestController::$calledMethod)->toBe('store');
 
     restoreRequest($original);
+});
+
+// Carrega as funções helper para testar has_route()
+if (!function_exists('has_route')) {
+    $functionsPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'helpers' . DIRECTORY_SEPARATOR . 'functions.php';
+    if (file_exists($functionsPath)) {
+        require_once $functionsPath;
+    }
+}
+
+it('hasRoute retorna true para rota que existe', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ],
+        [
+            'method' => 'GET',
+            'path' => '/users',
+            'handler' => 'tests\TestController@index',
+            'name' => 'users.index'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(Router::hasRoute('home'))->toBeTrue();
+    expect(Router::hasRoute('users.index'))->toBeTrue();
+});
+
+it('hasRoute retorna false para rota que não existe', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(Router::hasRoute('non-existent'))->toBeFalse();
+    expect(Router::hasRoute('users.index'))->toBeFalse();
+});
+
+it('hasRoute retorna false quando rota não tem nome', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index'
+            // Sem 'name'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(Router::hasRoute('home'))->toBeFalse();
+});
+
+it('hasRoute carrega rotas do arquivo de configuração se não foram fornecidas', function () {
+    Router::resetInstance();
+
+    // Verifica se o arquivo de rotas existe
+    $routesPath = BASE_PATH . '/config/routes.php';
+    if (file_exists($routesPath)) {
+        $routes = require $routesPath;
+        
+        // Se houver rotas com nome, testa uma delas
+        $hasNamedRoute = false;
+        $routeName = null;
+        foreach ($routes as $route) {
+            if (isset($route['name'])) {
+                $hasNamedRoute = true;
+                $routeName = $route['name'];
+                break;
+            }
+        }
+
+        if ($hasNamedRoute && $routeName) {
+            // hasRoute deve carregar automaticamente do arquivo
+            expect(Router::hasRoute($routeName))->toBeTrue();
+        }
+    }
+});
+
+it('hasRoute retorna false para rota inexistente quando rotas não foram carregadas', function () {
+    Router::resetInstance();
+
+    // hasRoute deve retornar false se não conseguir carregar rotas
+    // e a rota não existir
+    expect(Router::hasRoute('definitely-does-not-exist-route-name-12345'))->toBeFalse();
+});
+
+it('hasRoute funciona após resetInstance', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ]
+    ];
+
+    Router::getInstance($routes);
+    expect(Router::hasRoute('home'))->toBeTrue();
+
+    Router::resetInstance();
+    expect(Router::hasRoute('home'))->toBeFalse();
+});
+
+it('has_route função helper retorna true para rota que existe', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ],
+        [
+            'method' => 'GET',
+            'path' => '/users',
+            'handler' => 'tests\TestController@index',
+            'name' => 'users.index'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(has_route('home'))->toBeTrue();
+    expect(has_route('users.index'))->toBeTrue();
+});
+
+it('has_route função helper retorna false para rota que não existe', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(has_route('non-existent'))->toBeFalse();
+    expect(has_route('users.index'))->toBeFalse();
+});
+
+it('has_route função helper funciona após resetInstance', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ]
+    ];
+
+    Router::getInstance($routes);
+    expect(has_route('home'))->toBeTrue();
+
+    Router::resetInstance();
+    expect(has_route('home'))->toBeFalse();
+});
+
+it('hasRoute diferencia nomes de rotas corretamente', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ],
+        [
+            'method' => 'GET',
+            'path' => '/home',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home.page'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(Router::hasRoute('home'))->toBeTrue();
+    expect(Router::hasRoute('home.page'))->toBeTrue();
+    expect(Router::hasRoute('home.'))->toBeFalse();
+    expect(Router::hasRoute('.home'))->toBeFalse();
+});
+
+it('hasRoute funciona com rotas que têm mesmo path mas nomes diferentes', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/users',
+            'handler' => 'tests\TestController@index',
+            'name' => 'users.index'
+        ],
+        [
+            'method' => 'POST',
+            'path' => '/users',
+            'handler' => 'tests\TestController@store',
+            'name' => 'users.store'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    expect(Router::hasRoute('users.index'))->toBeTrue();
+    expect(Router::hasRoute('users.store'))->toBeTrue();
+    expect(Router::hasRoute('users'))->toBeFalse();
 });

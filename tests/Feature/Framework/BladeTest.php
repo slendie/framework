@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Slendie\Framework\Blade;
+use Slendie\Framework\Router;
 
 // Define BASE_PATH se não estiver definido
 if (!defined('BASE_PATH')) {
@@ -508,6 +509,19 @@ it('renderiza função old', function () {
 
     unset($_SESSION['old_input']);
     removeDirectory($tempDir);
+});
+
+it('if inline com old', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    $_SESSION['old_input'] = ['product_category' => 'automovel'];
+
+    $blade = new Blade(dirname(__DIR__) . '/Views/views');
+    $html = $blade->render('test_if_inline_old_values');
+
+    expect($html)->toContain('value="automovel" selected');
 });
 
 it('renderiza função old com valor padrão', function () {
@@ -1034,3 +1048,47 @@ it('renderiza @if com comparação menor ou igual', function () {
 
     removeDirectory($tempDir);
 });
+
+it('usa o has_route existente diretamente no blade', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ],
+        [
+            'method' => 'GET',
+            'path' => '/register',
+            'handler' => 'tests\TestController@register',
+            'name' => 'register'
+        ]
+    ];
+
+    Router::getInstance($routes);
+
+    $blade = new Blade(dirname(__DIR__) . '/Views/views');
+    $html = $blade->render('test_has_route');
+
+    expect($html)->toContain('Rota existe');
+});
+
+it('usa o has_route inexistente diretamente no blade', function () {
+    $routes = [
+        [
+            'method' => 'GET',
+            'path' => '/',
+            'handler' => 'tests\TestController@index',
+            'name' => 'home'
+        ]
+    ];
+
+    Router::resetInstance();
+    Router::getInstance($routes);
+
+    $blade = new Blade(dirname(__DIR__) . '/Views/views');
+    $html = $blade->render('test_has_route');
+
+    expect($html)->toContain('Rota não existe');
+});
+
