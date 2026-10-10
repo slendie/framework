@@ -51,6 +51,15 @@ final class RegisterProviders
             }
         }
 
+        if ($app->bound('providers.extra')) {
+            $extra = $app->make('providers.extra');
+
+            if (is_array($extra)) {
+                /** @var list<class-string<ServiceProvider>> $extra */
+                $providers = [...$providers, ...$extra];
+            }
+        }
+
         // TODO(core-04-09): juntar PackageDiscovery::discover(vendor).
 
         return array_values(array_unique($providers));

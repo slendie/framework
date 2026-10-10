@@ -3,7 +3,18 @@
 declare(strict_types=1);
 
 use Slendie\Container\Container;
+use Slendie\Exceptions\HttpException;
+use Slendie\Exceptions\NotFoundHttpException;
+use Slendie\Exceptions\TokenMismatchException;
 use Slendie\Foundation\Application;
+use Slendie\Http\Cookie;
+use Slendie\Http\RedirectResponse;
+use Slendie\Http\Request;
+use Slendie\Http\Response;
+use Slendie\Http\ResponseFactory;
+use Slendie\Routing\Redirector;
+use Slendie\Routing\UrlGenerator;
+use Slendie\Session\Session;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Str;
@@ -282,5 +293,218 @@ if (! function_exists('retry')) {
 
             goto beginning;
         }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// HTTP (peça core-04-02)
+// -----------------------------------------------------------------------------
+
+if (! function_exists('request')) {
+    /**
+     * Sem argumentos devolve o Request actual; com chave devolve esse valor do input.
+     *
+     * @param  string|null  $key
+     * @return ($key is null ? Request : mixed)
+     */
+    function request(?string $key = null, mixed $default = null): mixed
+    {
+        /** @var Request $request */
+        $request = app('request');
+
+        return $key === null ? $request : $request->input($key, $default);
+    }
+}
+
+if (! function_exists('response')) {
+    /**
+     * Sem argumentos devolve a ResponseFactory (json(), redirect(), view(), noContent(), download()).
+     *
+     * @param  array<string, string>  $headers
+     * @return ($content is null ? ResponseFactory : Response)
+     */
+    function response(?string $content = null, int $status = 200, array $headers = []): ResponseFactory|Response
+    {
+        $factory = app()->make(ResponseFactory::class);
+
+        return $content === null ? $factory : $factory->make($content, $status, $headers);
+    }
+}
+
+if (! function_exists('redirect')) {
+    /**
+     * Sem argumentos devolve o Redirector (route(), back(), to(), away()).
+     *
+     * @return ($to is null ? Redirector : RedirectResponse)
+     */
+    function redirect(?string $to = null, int $status = 302): Redirector|RedirectResponse
+    {
+        $redirector = app()->make(Redirector::class);
+
+        return $to === null ? $redirector : $redirector->to($to, $status);
+    }
+}
+
+if (! function_exists('back')) {
+    function back(int $status = 302, string|false $fallback = false): RedirectResponse
+    {
+        return app()->make(Redirector::class)->back($status, $fallback);
+    }
+}
+
+if (! function_exists('route')) {
+    /**
+     * @param  array<array-key, mixed>  $parameters
+     */
+    function route(string $name, array $parameters = [], bool $absolute = true): string
+    {
+        return app()->make(UrlGenerator::class)->route($name, $parameters, $absolute);
+    }
+}
+
+if (! function_exists('url')) {
+    /**
+     * Sem argumentos devolve o UrlGenerator; com caminho devolve o URL absoluto.
+     *
+     * @param  list<scalar>  $extra
+     * @return ($path is null ? UrlGenerator : string)
+     */
+    function url(?string $path = null, array $extra = [], ?bool $secure = null): UrlGenerator|string
+    {
+        $generator = app()->make(UrlGenerator::class);
+
+        return $path === null ? $generator : $generator->to($path, $extra, $secure);
+    }
+}
+
+if (! function_exists('asset')) {
+    function asset(string $path, ?bool $secure = null): string
+    {
+        return app()->make(UrlGenerator::class)->asset($path, $secure);
+    }
+}
+
+if (! function_exists('session')) {
+    /**
+     * Sem argumentos devolve a Session; com string lê; com array escreve.
+     *
+     * @param  string|array<string, mixed>|null  $key
+     * @return ($key is null ? Session : mixed)
+     */
+    function session(string|array|null $key = null, mixed $default = null): mixed
+    {
+        $session = request()->session();
+
+        if ($key === null) {
+            return $session;
+        }
+
+        if (is_array($key)) {
+            $session->put($key);
+
+            return null;
+        }
+
+        return $session->get($key, $default);
+    }
+}
+
+if (! function_exists('old')) {
+    /** Valor submetido no pedido anterior (para repopular formulários). */
+    function old(?string $key = null, mixed $default = null): mixed
+    {
+        $request = app('request');
+
+        if (! $request instanceof Request || ! $request->hasSession()) {
+            return $default;
+        }
+
+        return $request->session()->getOldInput($key, $default);
+    }
+}
+
+if (! function_exists('csrf_token')) {
+    function csrf_token(): string
+    {
+        return request()->session()->token();
+    }
+}
+
+if (! function_exists('csrf_field')) {
+    /** Campo hidden `_token` para formulários. */
+    function csrf_field(): string
+    {
+        return '<input type="hidden" name="_token" value="'.e(csrf_token()).'" autocomplete="off">';
+    }
+}
+
+if (! function_exists('method_field')) {
+    /** Campo hidden `_method` (PUT, PATCH, DELETE) para formulários HTML. */
+    function method_field(string $method): string
+    {
+        return '<input type="hidden" name="_method" value="'.e(strtoupper($method)).'">';
+    }
+}
+
+if (! function_exists('abort')) {
+    /**
+     * Interrompe o pedido com um erro HTTP.
+     *
+     * @param  array<string, string>  $headers
+     *
+     * @throws HttpException
+     */
+    function abort(int $code, string $message = '', array $headers = []): never
+    {
+        throw match ($code) {
+            404 => new NotFoundHttpException($message, null, $headers),
+            419 => (new TokenMismatchException($message !== '' ? $message : 'CSRF token mismatch.'))->setHeaders($headers),
+            default => new HttpException($code, $message, null, $headers),
+        };
+    }
+}
+
+if (! function_exists('abort_if')) {
+    /**
+     * @param  array<string, string>  $headers
+     */
+    function abort_if(mixed $condition, int $code, string $message = '', array $headers = []): void
+    {
+        if ($condition) {
+            abort($code, $message, $headers);
+        }
+    }
+}
+
+if (! function_exists('abort_unless')) {
+    /**
+     * @param  array<string, string>  $headers
+     */
+    function abort_unless(mixed $condition, int $code, string $message = '', array $headers = []): void
+    {
+        if (! $condition) {
+            abort($code, $message, $headers);
+        }
+    }
+}
+
+if (! function_exists('cookie')) {
+    /**
+     * Cria uma Cookie (para `$response->cookie($cookie)`). $minutes = 0 → cookie de sessão.
+     */
+    function cookie(string $name, string $value = '', int $minutes = 0, string $path = '/', ?string $domain = null, ?bool $secure = null, bool $httpOnly = true, string $sameSite = 'lax'): Cookie
+    {
+        $request = app()->bound('request') ? app('request') : null;
+
+        return Cookie::minutes(
+            $name,
+            $value,
+            $minutes,
+            $path,
+            $domain,
+            $secure ?? ($request instanceof Request && $request->isSecure()),
+            $httpOnly,
+            $sameSite,
+        );
     }
 }

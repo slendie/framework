@@ -137,7 +137,7 @@ it('register aceita instância, evita duplicados e faz boot imediato se já arra
 
     expect(FixtureServiceProvider::$log)->toBe(['anon:register', 'anon:boot'])
         ->and($this->app->getProvider($provider::class))->toBe($provider)
-        ->and($this->app->getLoadedProviders())->toHaveCount(3);
+        ->and($this->app->getLoadedProviders())->toHaveCount(3 + count($this->app->getFrameworkProviders()));
 });
 
 it('register recusa classes que não são providers', function (): void {

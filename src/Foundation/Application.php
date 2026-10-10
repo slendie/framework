@@ -12,6 +12,14 @@ use Slendie\Foundation\Bootstrap\HandleExceptions;
 use Slendie\Foundation\Bootstrap\LoadConfiguration;
 use Slendie\Foundation\Bootstrap\LoadEnvironment;
 use Slendie\Foundation\Bootstrap\RegisterProviders;
+use Slendie\Foundation\Configuration\ApplicationBuilder;
+use Slendie\Http\Kernel;
+use Slendie\Http\Request;
+use Slendie\Http\Response;
+use Slendie\Routing\RouteCollection;
+use Slendie\Routing\Router;
+use Slendie\Routing\RoutingServiceProvider;
+use Slendie\Session\SessionServiceProvider;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Facade;
@@ -35,7 +43,9 @@ class Application extends Container
      * @var list<class-string<ServiceProvider>>
      */
     protected array $frameworkProviders = [
-        // Preenchido pelas peças seguintes (Routing, Session, View, Database, Console, ...).
+        RoutingServiceProvider::class,
+        SessionServiceProvider::class,
+        // Peças seguintes: View, Database, Console, ...
     ];
 
     protected string $basePath;
@@ -82,6 +92,12 @@ class Application extends Container
         if (static::class !== self::class) {
             $this->instance(static::class, $this);
         }
+
+        // O Kernel (e o withMiddleware) é resolvido antes do bootstrap: o Router tem de ser o mesmo depois.
+        $this->singleton(RouteCollection::class);
+        $this->singleton(Router::class);
+        $this->alias(Router::class, 'router');
+        $this->singleton(Kernel::class);
     }
 
     public function version(): string
@@ -505,14 +521,57 @@ class Application extends Container
         return $this;
     }
 
-    public function terminate(): void
+    /**
+     * Sem argumentos corre apenas os callbacks de terminating(); com (Request, Response) delega primeiro no Kernel
+     * (que chama terminate() nos middlewares e volta aqui sem argumentos).
+     */
+    public function terminate(?Request $request = null, ?Response $response = null): void
     {
+        if ($request !== null && $response !== null) {
+            $this->make(Kernel::class)->terminate($request, $response);
+
+            return;
+        }
+
         foreach ($this->terminatingCallbacks as $callback) {
             $this->call($callback);
         }
     }
 
-    // TODO(core-04-02): handle(Request): Response delegando para Http\Kernel.
+    /**
+     * Processa um pedido HTTP através do Kernel.
+     */
+    public function handle(Request $request): Response
+    {
+        /** @var Kernel $kernel */
+        $kernel = $this->make(Kernel::class);
+
+        return $kernel->handle($request);
+    }
+
+    // -------------------------------------------------------------------------
+    // Configuração fluente (bootstrap/app.php)
+    // -------------------------------------------------------------------------
+
+    public static function configure(string $basePath): ApplicationBuilder
+    {
+        return new ApplicationBuilder(new self($basePath));
+    }
+
+    public function withRouting(?string $web = null, ?string $api = null): ApplicationBuilder
+    {
+        return (new ApplicationBuilder($this))->withRouting($web, $api);
+    }
+
+    public function withMiddleware(Closure $callback): ApplicationBuilder
+    {
+        return (new ApplicationBuilder($this))->withMiddleware($callback);
+    }
+
+    public function withExceptions(Closure $callback): ApplicationBuilder
+    {
+        return (new ApplicationBuilder($this))->withExceptions($callback);
+    }
 
     public function flush(): void
     {

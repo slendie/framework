@@ -7,6 +7,7 @@ namespace Slendie\Foundation\Bootstrap;
 use ErrorException;
 use Slendie\Foundation\Application;
 use Slendie\Foundation\Exceptions\Handler;
+use Slendie\Http\Request;
 use Throwable;
 
 /**
@@ -68,9 +69,12 @@ final class HandleExceptions
             if ($app->runningInConsole()) {
                 $handler->renderForConsole($e);
             } else {
-                $handler->renderRaw($e);
+                $request = $app->bound('request') ? $app->make('request') : Request::capture();
+
+                $handler->render($request instanceof Request ? $request : Request::capture(), $e)->send();
             }
         } catch (Throwable $inner) {
+            // Último recurso: nem o Handler conseguiu responder.
             echo $inner;
         }
     }
