@@ -1,0 +1,55 @@
+{
+    "name": "slendie/framework",
+    "description": "Slendie Framework — um Laravel light para pequenos projectos PHP: MVC, Blade compilado, Query Builder, Models, migrações, CLI. Zero dependências em runtime.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["framework", "mvc", "php", "blade", "micro-framework", "slendie", "landing-page"],
+    "homepage": "https://slendie.lcloss.dev",
+    "authors": [
+        { "name": "Luciano Closs", "email": "lcloss@gmail.com" }
+    ],
+    "support": {
+        "issues": "https://github.com/slendie/framework/issues",
+        "source": "https://github.com/slendie/framework",
+        "docs": "https://slendie.lcloss.dev/docs"
+    },
+    "require": {
+        "php": "^8.5",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.0",
+        "phpstan/phpstan": "^2.1",
+        "laravel/pint": "^1.26"
+    },
+    "suggest": {
+        "ext-pdo_sqlite": "Base de dados por defeito",
+        "ext-pdo_mysql": "Suporte a MySQL/MariaDB",
+        "ext-pdo_pgsql": "Suporte a PostgreSQL",
+        "slendie/auth": "Autenticação por sessão e tokens",
+        "slendie/react-admin": "Painel de leads em React"
+    },
+    "autoload": {
+        "psr-4": { "Slendie\\": "src/" },
+        "files": ["src/Support/helpers.php"]
+    },
+    "autoload-dev": {
+        "psr-4": { "Slendie\\Tests\\": "tests/" }
+    },
+    "scripts": {
+        "test": "pest",
+        "analyse": "phpstan analyse",
+        "lint": "pint --test"
+    },
+    "extra": {
+        "branch-alias": { "dev-main": "4.x-dev" }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "pestphp/pest-plugin": true }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
