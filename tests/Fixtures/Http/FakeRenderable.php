@@ -30,6 +30,11 @@ class FakeRenderable implements Renderable, ViewFactory
         return new self($view, $data);
     }
 
+    public function exists(string $view): bool
+    {
+        return true;
+    }
+
     public function share(string $key, mixed $value = null): mixed
     {
         return self::$shared[$key] = $value;

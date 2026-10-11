@@ -214,22 +214,23 @@ it('redirect() e permanentRedirect() criam rotas de redirecionamento', function 
         ->and($second->getHeader('Location'))->toBe('https://example.org/x');
 });
 
-it('view() devolve um ViewResponse lazy', function (): void {
+it('view() devolve um ViewResponse já renderizado dentro do pipeline', function (): void {
     $this->app->instance('view', new FakeRenderable());
     $this->router->view('/welcome', 'pages.welcome', ['name' => 'Ana']);
 
     $response = dispatch('/welcome');
 
     expect($response)->toBeInstanceOf(ViewResponse::class)
-        ->and(FakeRenderable::$renders)->toBe(0)
-        ->and($response->getContent())->toBe('<p>pages.welcome:{"name":"Ana"}</p>');
+        ->and(FakeRenderable::$renders)->toBe(1)
+        ->and($response->getContent())->toBe('<p>pages.welcome:{"name":"Ana"}</p>')
+        ->and(FakeRenderable::$renders)->toBe(1);
 });
 
-it('view() sem motor de views falha com mensagem clara', function (): void {
+it('view() de uma view inexistente falha com ViewNotFoundException', function (): void {
     $this->router->view('/welcome', 'pages.welcome');
 
     dispatch('/welcome');
-})->throws(LogicException::class);
+})->throws(Slendie\View\ViewNotFoundException::class);
 
 it('toResponse converte string, array, Arrayable, Renderable, null e Response', function (): void {
     $router = $this->router;

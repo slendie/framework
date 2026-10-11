@@ -23,6 +23,7 @@ use Slendie\Session\SessionServiceProvider;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Facade;
+use Slendie\View\ViewServiceProvider;
 
 class Application extends Container
 {
@@ -45,7 +46,8 @@ class Application extends Container
     protected array $frameworkProviders = [
         RoutingServiceProvider::class,
         SessionServiceProvider::class,
-        // Peças seguintes: View, Database, Console, ...
+        ViewServiceProvider::class,
+        // Peças seguintes: Database, Console, ...
     ];
 
     protected string $basePath;

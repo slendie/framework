@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Slendie\Foundation\Exceptions;
 
+use Slendie\Contracts\ViewFactory;
 use Slendie\Exceptions\HttpException;
 use Slendie\Foundation\Application;
 use Slendie\Http\JsonResponse;
@@ -149,15 +150,15 @@ class Handler
             return new JsonResponse(['message' => $message], $status, $headers);
         }
 
-        $template = $this->findErrorTemplate((string) $status) ?? $this->findErrorTemplate('generic');
+        $data = [
+            'status' => $status,
+            'title' => Response::STATUS_TEXTS[$status] ?? 'Error',
+            'message' => $message,
+        ];
 
-        $html = $template === null
-            ? '<!doctype html><meta charset="utf-8"><title>'.$status.'</title><h1>'.$status.'</h1><p>'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</p>'
-            : $this->renderTemplate($template, [
-                'status' => $status,
-                'title' => Response::STATUS_TEXTS[$status] ?? 'Error',
-                'message' => $message,
-            ]);
+        $html = $this->renderErrorView((string) $status, $data)
+            ?? $this->renderErrorView('generic', $data)
+            ?? '<!doctype html><meta charset="utf-8"><title>'.$status.'</title><h1>'.$status.'</h1><p>'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</p>';
 
         return new Response($html, $status, ['Content-Type' => 'text/html; charset=UTF-8', ...$headers]);
     }
@@ -174,13 +175,7 @@ class Handler
             ], 500);
         }
 
-        $template = $this->findErrorTemplate('debug');
-
-        if ($template === null) {
-            return $this->renderStatus($request, 500, 'Server Error');
-        }
-
-        $html = $this->renderTemplate($template, [
+        $html = $this->renderErrorView('debug', [
             'class' => $e::class,
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
@@ -190,6 +185,10 @@ class Handler
             'request' => $this->describeRequest($request),
             'environment' => $this->sanitizedEnvironment(),
         ]);
+
+        if ($html === null) {
+            return $this->renderStatus($request, 500, 'Server Error');
+        }
 
         return new Response($html, 500, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
@@ -239,47 +238,28 @@ class Handler
     // -------------------------------------------------------------------------
 
     /**
-     * Procura errors/{name}.php: primeiro na aplicação (resources/views/errors), depois na framework.
-     * TODO(core-04-03): passar a usar o motor de views (.blade.php).
-     */
-    protected function findErrorTemplate(string $name): ?string
-    {
-        $candidates = [
-            $this->app->resourcePath('views/errors/'.$name.'.php'),
-            dirname(__DIR__, 3).'/resources/views/errors/'.$name.'.php',
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
-    }
-
-    /**
+     * Renderiza a view `errors::{name}` (o projecto sobrepõe-a em resources/views/errors).
+     * Devolve null se não existir ou se a própria renderização falhar: uma página de erro nunca pode causar outro erro.
+     *
      * @param  array<string, mixed>  $data
      */
-    protected function renderTemplate(string $file, array $data): string
+    protected function renderErrorView(string $name, array $data): ?string
     {
-        $render = static function (string $__file, array $__data): string {
-            extract($__data, EXTR_SKIP);
+        if (! $this->app->bound('view')) {
+            return null;
+        }
 
-            ob_start();
+        try {
+            $factory = $this->app->make('view');
 
-            try {
-                include $__file;
-            } catch (Throwable $e) {
-                ob_end_clean();
-
-                throw $e;
+            if (! $factory instanceof ViewFactory || ! $factory->exists('errors::'.$name)) {
+                return null;
             }
 
-            return (string) ob_get_clean();
-        };
-
-        return $render($file, $data);
+            return $factory->make('errors::'.$name, $data)->render();
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

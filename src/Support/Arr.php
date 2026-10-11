@@ -381,4 +381,27 @@ final class Arr
 
         return $results;
     }
+
+    /**
+     * Junta classes CSS: `['btn', 'btn-primary' => $primary]` → 'btn btn-primary'.
+     * Chaves de texto só entram se o valor for verdadeiro.
+     *
+     * @param  array<array-key, mixed>  $classes
+     */
+    public static function toCssClasses(array $classes): string
+    {
+        $result = [];
+
+        foreach ($classes as $key => $value) {
+            if (is_int($key)) {
+                if (is_string($value) && $value !== '') {
+                    $result[] = $value;
+                }
+            } elseif ($value) {
+                $result[] = $key;
+            }
+        }
+
+        return implode(' ', $result);
+    }
 }

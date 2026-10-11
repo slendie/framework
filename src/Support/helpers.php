@@ -18,6 +18,8 @@ use Slendie\Session\Session;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Str;
+use Slendie\View\Factory as ViewEngineFactory;
+use Slendie\View\View;
 
 if (! function_exists('app')) {
     /**
@@ -506,5 +508,41 @@ if (! function_exists('cookie')) {
             $httpOnly,
             $sameSite,
         );
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Views (peça core-04-03)
+// -----------------------------------------------------------------------------
+
+if (! function_exists('view')) {
+    /**
+     * Sem argumentos devolve a Factory (exists(), share(), composer()); com nome devolve a View.
+     *
+     * @param  array<string, mixed>  $data
+     * @return ($view is null ? ViewEngineFactory : View)
+     */
+    function view(?string $view = null, array $data = []): ViewEngineFactory|View
+    {
+        $factory = app('view');
+
+        if (! $factory instanceof ViewEngineFactory) {
+            throw new RuntimeException('O serviço [view] não é uma Slendie\View\Factory.');
+        }
+
+        return $view === null ? $factory : $factory->make($view, $data);
+    }
+}
+
+if (! function_exists('vite')) {
+    /**
+     * Tags de assets do Vite para @vite(...).
+     * TODO(core-04-09): ligar à classe Vite real (manifest, dev server, preload).
+     *
+     * @param  string|list<string>  $entries
+     */
+    function vite(string|array $entries = []): string
+    {
+        return '';
     }
 }

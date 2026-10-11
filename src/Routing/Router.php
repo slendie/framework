@@ -553,7 +553,22 @@ class Router
         return $parameters;
     }
 
+    /**
+     * Converte o resultado de uma acção em Response. As views são renderizadas já aqui, dentro do pipeline:
+     * uma excepção na view (ou um abort()) passa pelo Handler e a sessão ainda está activa (old(), flash, csrf).
+     */
     public function toResponse(mixed $result): Response
+    {
+        $response = $this->makeResponse($result);
+
+        if ($response instanceof ViewResponse) {
+            $response->getContent();
+        }
+
+        return $response;
+    }
+
+    protected function makeResponse(mixed $result): Response
     {
         return match (true) {
             $result instanceof Response => $result,

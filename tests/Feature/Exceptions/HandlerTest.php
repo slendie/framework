@@ -131,13 +131,14 @@ it('renderable() permite respostas personalizadas por tipo', function (): void {
 
 it('a aplicação pode sobrepor a página de erro em resources/views/errors', function (): void {
     $resources = sys_get_temp_dir().DIRECTORY_SEPARATOR.'slendie-res-'.bin2hex(random_bytes(4));
-    mkdir($resources.'/views/errors', 0777, true);
-    file_put_contents($resources.'/views/errors/404.php', '<?php echo "custom-404-".$status; ?>');
+    mkdir($resources.'/resources/views/errors', 0777, true);
+    file_put_contents($resources.'/resources/views/errors/404.blade.php', 'custom-404-{{ $status }}');
 
     $app = new Slendie\Foundation\Application($resources);
-    $app->bootstrapWith([Slendie\Foundation\Bootstrap\LoadEnvironment::class]);
-    mkdir($resources.'/resources/views/errors', 0777, true);
-    rename($resources.'/views/errors/404.php', $resources.'/resources/views/errors/404.php');
+    $app->bootstrapWith([
+        Slendie\Foundation\Bootstrap\LoadEnvironment::class,
+        Slendie\Foundation\Bootstrap\RegisterProviders::class,
+    ]);
 
     $response = (new Handler($app))->render(Request::create('/x'), new NotFoundHttpException());
 
