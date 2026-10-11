@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Slendie\Foundation\Exceptions;
 
 use Slendie\Contracts\ViewFactory;
+use Slendie\Database\RecordNotFoundException;
 use Slendie\Exceptions\HttpException;
+use Slendie\Exceptions\NotFoundHttpException;
 use Slendie\Foundation\Application;
 use Slendie\Http\JsonResponse;
 use Slendie\Http\Request;
@@ -122,6 +124,10 @@ class Handler
                     return $response;
                 }
             }
+        }
+
+        if ($e instanceof RecordNotFoundException) {
+            $e = new NotFoundHttpException(previous: $e);
         }
 
         if ($e instanceof HttpException) {

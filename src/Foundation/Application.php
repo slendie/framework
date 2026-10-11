@@ -7,6 +7,7 @@ namespace Slendie\Foundation;
 use Closure;
 use LogicException;
 use Slendie\Container\Container;
+use Slendie\Database\DatabaseServiceProvider;
 use Slendie\Foundation\Bootstrap\BootProviders;
 use Slendie\Foundation\Bootstrap\HandleExceptions;
 use Slendie\Foundation\Bootstrap\LoadConfiguration;
@@ -47,7 +48,8 @@ class Application extends Container
         RoutingServiceProvider::class,
         SessionServiceProvider::class,
         ViewServiceProvider::class,
-        // Peças seguintes: Database, Console, ...
+        DatabaseServiceProvider::class,
+        // Peças seguintes: Console, ...
     ];
 
     protected string $basePath;
