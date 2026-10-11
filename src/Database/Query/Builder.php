@@ -481,6 +481,25 @@ class Builder
     }
 
     /**
+     * Agrupa os `where` existentes num único grupo entre parênteses, para que condições adicionadas
+     * depois (ex.: global scopes) não se misturem com `or` anteriores.
+     */
+    public function groupWheres(): static
+    {
+        if (count($this->wheres) < 2) {
+            return $this;
+        }
+
+        $nested = $this->newQuery();
+        $nested->wheres = $this->wheres;
+        $nested->bindings['where'] = $this->bindings['where'];
+
+        $this->wheres = [['type' => 'Nested', 'query' => $nested, 'not' => false, 'boolean' => 'and']];
+
+        return $this;
+    }
+
+    /**
      * Aplica o callback só se a condição for verdadeira.
      *
      * @param  Closure(static, mixed): mixed  $callback

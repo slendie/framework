@@ -126,6 +126,7 @@ class Handler
             }
         }
 
+        // ModelNotFoundException estende RecordNotFoundException.
         if ($e instanceof RecordNotFoundException) {
             $e = new NotFoundHttpException(previous: $e);
         }

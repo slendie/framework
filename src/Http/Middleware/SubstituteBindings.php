@@ -11,6 +11,8 @@ use Slendie\Contracts\UrlRoutable;
 use Slendie\Exceptions\NotFoundHttpException;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
+use Slendie\Model\Model;
+use Slendie\Model\ModelNotFoundException;
 use Slendie\Routing\Route;
 
 /**
@@ -41,9 +43,13 @@ class SubstituteBindings
 
                 /** @var UrlRoutable $instance */
                 $instance = Container::getInstance()->make($class);
-                $model = $instance->resolveRouteBinding($value, null);
+                $model = $instance->resolveRouteBinding($value, $route->bindingField($name));
 
                 if ($model === null) {
+                    if ($instance instanceof Model) {
+                        throw (new ModelNotFoundException())->setModel($class, is_scalar($value) ? [$value] : []);
+                    }
+
                     throw new NotFoundHttpException('No query results for '.$class.' ['.(is_scalar($value) ? (string) $value : $name).'].');
                 }
 

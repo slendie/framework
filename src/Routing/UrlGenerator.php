@@ -79,7 +79,11 @@ class UrlGenerator
         foreach ($names as $param) {
             if (array_key_exists($param, $named) && $named[$param] !== null) {
                 $value = rawurlencode($this->routeKey($named[$param]));
-                $uri = str_replace(['{'.$param.'}', '{'.$param.'?}'], $value, $uri);
+                $uri = (string) preg_replace_callback(
+                    '#\{'.preg_quote($param, '#').'(?::\w+|\?)?\}#',
+                    static fn (): string => $value,
+                    $uri,
+                );
                 unset($named[$param]);
 
                 continue;

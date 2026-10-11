@@ -42,6 +42,9 @@ class Route
     /** @var array<string, mixed> */
     protected array $parameters = [];
 
+    /** @var array<string, string> */
+    protected array $bindingFields = [];
+
     /** @var class-string|null */
     protected ?string $controllerClass = null;
 
@@ -352,13 +355,17 @@ class Route
             }
 
             $regex .= '/'.preg_replace_callback(
-                '/\{(\w+)\}|([^{]+)/',
+                '/\{(\w+)(?::(\w+))?\}|([^{]+)/',
                 function (array $parts) use (&$names): string {
-                    if (isset($parts[2])) {
-                        return preg_quote($parts[2], '#');
+                    if (isset($parts[3])) {
+                        return preg_quote($parts[3], '#');
                     }
 
                     $names[] = $parts[1];
+
+                    if (($parts[2] ?? '') !== '') {
+                        $this->bindingFields[$parts[1]] = $parts[2];
+                    }
 
                     return '(?P<'.$parts[1].'>'.$this->constraint($parts[1]).')';
                 },
@@ -367,6 +374,16 @@ class Route
         }
 
         return $this->compiled = new CompiledRoute('#^'.$regex.'/?$#u', $names, $optional);
+    }
+
+    /**
+     * Campo de binding explícito (`{post:slug}` → `slug`), ou null.
+     */
+    public function bindingField(string $name): ?string
+    {
+        $this->compile();
+
+        return $this->bindingFields[$name] ?? null;
     }
 
     private function constraint(string $name): string

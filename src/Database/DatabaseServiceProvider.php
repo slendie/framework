@@ -8,6 +8,7 @@ use Slendie\Database\Pagination\AbstractPaginator;
 use Slendie\Foundation\Application;
 use Slendie\Foundation\ServiceProvider;
 use Slendie\Http\Request;
+use Slendie\Model\Model;
 use Slendie\Support\Config;
 use Slendie\View\Factory;
 
@@ -43,6 +44,8 @@ class DatabaseServiceProvider extends ServiceProvider
         });
 
         $app = $this->app;
+
+        Model::setConnectionResolver(static fn (): DatabaseManager => $app->make(DatabaseManager::class));
 
         AbstractPaginator::currentPageResolver(function (string $pageName) use ($app): int {
             $page = $app->bound('request') ? $this->request($app)->query($pageName, 1) : ($_GET[$pageName] ?? 1);
