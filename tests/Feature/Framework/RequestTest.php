@@ -699,32 +699,6 @@ it('função old() retorna default quando não existe mas tem default', function
     clearSession();
 });
 
-it('função old() remove valor da sessão após recuperar (comportamento flash)', function () {
-    // Limpa sessão
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    clearSession();
-
-    // Define valor em sessão
-    $_SESSION['old_input'] = ['name' => 'John'];
-
-    // Recupera valor
-    $value = old('name');
-    expect($value)->toBe('John');
-
-    // Verifica que o valor foi removido da sessão
-    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
-    
-    // Se não houver mais valores, o array também deve ser removido
-    if (empty($_SESSION['old_input'])) {
-        expect(isset($_SESSION['old_input']))->toBeFalse();
-    }
-
-    // Limpa
-    clearSession();
-});
-
 it('função old() funciona com múltiplos valores na sessão', function () {
     // Limpa sessão
     if (session_status() === PHP_SESSION_NONE) {
@@ -742,23 +716,29 @@ it('função old() funciona com múltiplos valores na sessão', function () {
     // Recupera primeiro valor
     expect(old('name'))->toBe('John');
     
-    // Verifica que apenas 'name' foi removido
-    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
+    // Verifica que os valores permanecem na sessão
+    expect(isset($_SESSION['old_input']['name']))->toBeTrue();
     expect(isset($_SESSION['old_input']['email']))->toBeTrue();
     expect(isset($_SESSION['old_input']['phone']))->toBeTrue();
+    expect(old('name'))->toBe('John');
 
     // Recupera segundo valor
     expect(old('email'))->toBe('john@example.com');
     
-    // Verifica que apenas 'email' foi removido
-    expect(isset($_SESSION['old_input']['email']))->toBeFalse();
+    // Verifica que 'email' ainda está na sessão
+    expect(isset($_SESSION['old_input']['email']))->toBeTrue();
     expect(isset($_SESSION['old_input']['phone']))->toBeTrue();
+    expect(old('email'))->toBe('john@example.com');
 
     // Recupera terceiro valor
     expect(old('phone'))->toBe('123456789');
     
-    // Verifica que agora está vazio
-    expect(isset($_SESSION['old_input']))->toBeFalse();
+    // Verifica que 'phone' ainda está na sessão
+    expect(isset($_SESSION['old_input']['phone']))->toBeTrue();
+    expect(old('phone'))->toBe('123456789');
+
+    // Verifica que 'old_input' ainda existe
+    expect(isset($_SESSION['old_input']))->toBeTrue();
 
     // Limpa
     clearSession();
@@ -777,14 +757,17 @@ it('função old() com default não afeta valores existentes na sessão', functi
     // Testa old() com default quando valor existe (deve retornar o valor da sessão, não o default)
     expect(old('name', 'Guest'))->toBe('John');
 
-    // Verifica que o valor foi removido após recuperar
-    expect(isset($_SESSION['old_input']['name']))->toBeFalse();
+    // Verifica que 'name' ainda está na sessão
+    expect(isset($_SESSION['old_input']['name']))->toBeTrue();
 
     // Testa old() com default quando valor não existe (deve retornar o default)
     expect(old('email', 'default@example.com'))->toBe('default@example.com');
     
-    // Verifica que old_input ainda não existe (pois nunca teve email)
-    expect(isset($_SESSION['old_input']))->toBeFalse();
+    // Verifica que 'email' não está na sessão
+    expect(isset($_SESSION['old_input']['email']))->toBeFalse();
+
+    // Verifica que 'old_input' ainda existe
+    expect(isset($_SESSION['old_input']))->toBeTrue();
 
     // Limpa
     clearSession();

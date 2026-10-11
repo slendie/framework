@@ -243,18 +243,25 @@ final class Router
      */
     public static function hasRoute(string $name): bool
     {
-        // Se as rotas ainda não foram carregadas, tenta carregar
-        if (empty(self::$routes)) {
-            $routesPath = BASE_PATH . '/config/routes.php';
-            if (file_exists($routesPath)) {
-                self::$routes = require $routesPath;
+        // Usa self::$routes se disponível (definido quando Router é inicializado)
+        // Mas se estiver vazio, tenta carregar do arquivo diretamente (como a função route() faz)
+        $routes = self::$routes;
+        if (empty($routes)) {
+            if (defined('BASE_PATH')) {
+                $routesPath = BASE_PATH . '/config/routes.php';
+                if (file_exists($routesPath)) {
+                    $routes = require $routesPath;
+                    self::$routes = $routes;
+                } else {
+                    return false;
+                }
             } else {
                 return false;
             }
         }
 
         // Procura a rota pelo nome
-        foreach (self::$routes as $route) {
+        foreach ($routes as $route) {
             if (isset($route['name']) && $route['name'] === $name) {
                 return true;
             }

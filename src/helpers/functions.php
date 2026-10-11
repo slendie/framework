@@ -160,14 +160,9 @@ if (! function_exists('old')) {
         // Recupera o valor
         $value = $_SESSION['old_input'][$key];
 
-        // Remove o valor da sessão (comportamento flash)
-        unset($_SESSION['old_input'][$key]);
-
-        // Se old_input ficou vazio, remove o array completo
-        if (empty($_SESSION['old_input'])) {
-            unset($_SESSION['old_input']);
-        }
-
+        // Não remove o valor imediatamente para permitir múltiplas leituras no mesmo request
+        // O valor será removido automaticamente no próximo request ou manualmente com flash_clear()
+        
         return $value;
     }
 }
