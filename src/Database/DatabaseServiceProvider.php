@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Slendie\Database;
 
+use Slendie\Database\Migrations\MigrationCreator;
+use Slendie\Database\Migrations\MigrationRepository;
+use Slendie\Database\Migrations\Migrator;
 use Slendie\Database\Pagination\AbstractPaginator;
+use Slendie\Database\Schema\Builder as SchemaBuilder;
 use Slendie\Foundation\Application;
 use Slendie\Foundation\ServiceProvider;
 use Slendie\Http\Request;
@@ -13,7 +17,7 @@ use Slendie\Support\Config;
 use Slendie\View\Factory;
 
 /**
- * Regista o DatabaseManager (`db`), a Connection por omissão e liga a paginação ao pedido actual.
+ * Regista o DatabaseManager (`db`), a Connection por omissão, o Schema (`db.schema`), o Migrator e liga a paginação ao pedido actual.
  */
 class DatabaseServiceProvider extends ServiceProvider
 {
@@ -34,6 +38,23 @@ class DatabaseServiceProvider extends ServiceProvider
         $this->app->alias(DatabaseManager::class, 'db');
 
         $this->app->bind(Connection::class, fn (Application $app): Connection => $app->make(DatabaseManager::class)->connection());
+
+        // Não partilhado: o Schema:: segue sempre a ligação por omissão (que o Migrator pode trocar).
+        $this->app->bind('db.schema', fn (Application $app): SchemaBuilder => $app->make(DatabaseManager::class)->connection()->getSchemaBuilder());
+
+        $this->app->singleton(MigrationRepository::class, function (Application $app): MigrationRepository {
+            $table = $app->make(Config::class)->get('database.migrations', 'migrations');
+
+            return new MigrationRepository($app->make(DatabaseManager::class), is_string($table) && $table !== '' ? $table : 'migrations');
+        });
+
+        $this->app->singleton(Migrator::class, fn (Application $app): Migrator => new Migrator(
+            $app->make(MigrationRepository::class),
+            $app->make(DatabaseManager::class),
+            [$app->databasePath('migrations')],
+        ));
+
+        $this->app->singleton(MigrationCreator::class, fn (): MigrationCreator => new MigrationCreator());
     }
 
     public function boot(): void

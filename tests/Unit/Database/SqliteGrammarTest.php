@@ -116,7 +116,7 @@ it('SQLite: agregados, exists, update, delete e increment', function (): void {
 it('SQLite: count com group by usa subquery', function (): void {
     $log = Db::offline('sqlite')->pretend(fn ($c) => $c->table('users')->where('a', 1)->groupBy('team')->count());
 
-    expect($log[0]['sql'])->toBe('select count(*) as "aggregate" from (select * from "users" where "a" = ? group by "team") as "aggregate_table"');
+    expect($log[0]['sql'])->toBe('select count(*) as "aggregate" from (select "team" from "users" where "a" = ? group by "team") as "aggregate_table"');
 });
 
 it('SQLite: bindings são convertidos (bool, data, enum) e Expression não gera binding', function (): void {

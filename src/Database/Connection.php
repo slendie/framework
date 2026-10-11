@@ -8,12 +8,18 @@ use BackedEnum;
 use Closure;
 use DateTimeInterface;
 use Generator;
+use InvalidArgumentException;
 use PDO;
 use PDOException;
 use PDOStatement;
 use Slendie\Database\Query\Builder;
 use Slendie\Database\Query\Expression;
 use Slendie\Database\Query\Grammar;
+use Slendie\Database\Schema\Builder as SchemaBuilder;
+use Slendie\Database\Schema\Grammars\Grammar as SchemaGrammar;
+use Slendie\Database\Schema\Grammars\MySqlGrammar as MySqlSchemaGrammar;
+use Slendie\Database\Schema\Grammars\PgsqlGrammar as PgsqlSchemaGrammar;
+use Slendie\Database\Schema\Grammars\SqliteGrammar as SqliteSchemaGrammar;
 use Throwable;
 
 /**
@@ -41,6 +47,8 @@ class Connection
 
     /** @var list<array{sql: string, bindings: array<array-key, mixed>, time_ms: float}> */
     protected array $pretended = [];
+
+    protected ?SchemaGrammar $schemaGrammar = null;
 
     /**
      * @param  PDO|Closure(): PDO  $pdo  uma closure só liga à BD quando for precisa
@@ -109,6 +117,27 @@ class Connection
     public function getGrammar(): Grammar
     {
         return $this->grammar;
+    }
+
+    /** Grammar de DDL do driver (para drivers próprios, definir com `setSchemaGrammar()`). */
+    public function getSchemaGrammar(): SchemaGrammar
+    {
+        return $this->schemaGrammar ??= match ($this->driver) {
+            'sqlite' => new SqliteSchemaGrammar(),
+            'mysql', 'mariadb' => new MySqlSchemaGrammar(),
+            'pgsql' => new PgsqlSchemaGrammar(),
+            default => throw new InvalidArgumentException("Sem grammar de schema para o driver [{$this->driver}]; usa setSchemaGrammar()."),
+        };
+    }
+
+    public function setSchemaGrammar(SchemaGrammar $grammar): void
+    {
+        $this->schemaGrammar = $grammar;
+    }
+
+    public function getSchemaBuilder(): SchemaBuilder
+    {
+        return new SchemaBuilder($this);
     }
 
     public function raw(string|int|float $value): Expression

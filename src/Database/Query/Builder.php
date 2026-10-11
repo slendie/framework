@@ -828,7 +828,8 @@ class Builder
     protected function aggregateOverSubquery(self $inner, string $function, array $columns): mixed
     {
         if ($inner->columns === []) {
-            $inner->columns = ['*'];
+            // Com group by, `select *` é inválido em MySQL (only_full_group_by): selecciona as colunas agrupadas.
+            $inner->columns = $inner->groups !== [] ? $inner->groups : ['*'];
         }
 
         if ($inner->limit === null && $inner->offset === null) {
