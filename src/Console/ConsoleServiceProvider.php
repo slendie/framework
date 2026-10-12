@@ -33,6 +33,7 @@ class ConsoleServiceProvider extends ServiceProvider
         Commands\MakeMigrationCommand::class,
         Commands\MakeModelCommand::class,
         Commands\MakeProviderCommand::class,
+        Commands\MakeRequestCommand::class,
         Commands\MakeSeederCommand::class,
         Commands\MakeViewCommand::class,
         Commands\MigrateCommand::class,

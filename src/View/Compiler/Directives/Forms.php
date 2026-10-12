@@ -20,14 +20,14 @@ trait Forms
     }
 
     /**
-     * `@error('campo') ... {{ $message }} ... @enderror` — usa `$errors` (ViewErrorBag, partilhado pelo ShareErrorsFromSession).
+     * `@error('campo') ... {{ $message }} ... @enderror` — usa `$errors` (MessageBag, partilhado pelo ShareErrorsFromSession).
      */
     protected function compileError(string $expression): string
     {
         $field = $this->splitArguments($expression)[0];
         $n = ++$this->errorCounter;
 
-        return "<?php \$__msg{$n} = \$message ?? null; \$__bag{$n} = \$errors ?? new \\Slendie\\View\\ViewErrorBag(); "
+        return "<?php \$__msg{$n} = \$message ?? null; \$__bag{$n} = \$errors ?? new \\Slendie\\Validation\\MessageBag(); "
             ."if (\$__bag{$n}->has({$field})): \$message = \$__bag{$n}->first({$field}); ?>";
     }
 

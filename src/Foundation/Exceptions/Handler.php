@@ -12,7 +12,9 @@ use Slendie\Foundation\Application;
 use Slendie\Http\JsonResponse;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
+use Slendie\Routing\Redirector;
 use Slendie\Support\Env;
+use Slendie\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -22,12 +24,12 @@ class Handler
 {
     /**
      * Excepções que não vão para o log.
-     * TODO(core-04-08): acrescentar ValidationException.
      *
      * @var list<class-string<Throwable>>
      */
     protected array $dontReport = [
         HttpException::class,
+        ValidationException::class,
     ];
 
     /** @var list<array{0: class-string<Throwable>, 1: \Closure}> */
@@ -126,6 +128,10 @@ class Handler
             }
         }
 
+        if ($e instanceof ValidationException) {
+            return $this->renderValidationException($request, $e);
+        }
+
         // ModelNotFoundException estende RecordNotFoundException.
         if ($e instanceof RecordNotFoundException) {
             $e = new NotFoundHttpException(previous: $e);
@@ -138,6 +144,34 @@ class Handler
         return $this->app->isDebug()
             ? $this->renderDebug($request, $e)
             : $this->renderStatus($request, 500, 'Server Error');
+    }
+
+    /**
+     * JSON/API: 422 com `{message, errors}`. Formulários web: redirect de volta com os erros e o input antigo.
+     */
+    protected function renderValidationException(Request $request, ValidationException $e): Response
+    {
+        $errors = $e->errors();
+
+        if ($request->expectsJson() || ! $request->hasSession()) {
+            return new JsonResponse([
+                'message' => 'Os dados fornecidos são inválidos.',
+                'errors' => $errors,
+            ], $e->status);
+        }
+
+        $redirect = $e->redirectTo !== null
+            ? $this->app->make(Redirector::class)->to($e->redirectTo)
+            : $this->app->make(Redirector::class)->back();
+
+        $redirect->setSession($request->session())
+            ->withInput($request->except(['password', 'password_confirmation', 'current_password', '_token']))
+            ->withErrors($errors, $e->errorBag);
+
+        // O StartSession já gravou a sessão quando a excepção o atravessou: grava o flash agora.
+        $request->session()->save();
+
+        return $redirect;
     }
 
     protected function renderHttpException(Request $request, HttpException $e): Response

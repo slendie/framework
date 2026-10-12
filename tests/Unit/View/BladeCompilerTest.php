@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Slendie\Support\Str;
 use Slendie\Tests\Fixtures\View\ViewHelpers as V;
+use Slendie\Validation\MessageBag;
 use Slendie\View\CompileException;
 use Slendie\View\Compiler\BladeCompiler;
-use Slendie\View\ViewErrorBag;
 
 /** Renderiza e junta o espaço em branco, para os testes de estrutura não dependerem de quebras de linha. */
 function squished(string $blade, array $data = [], array $files = []): string
@@ -271,7 +271,7 @@ it('secção por fechar é reportada', function (): void {
 // -----------------------------------------------------------------------------
 
 it('@error expõe $message e restaura o anterior', function (): void {
-    $errors = new ViewErrorBag(['email' => ['Inválido', 'Outro'], 'nome' => 'Obrigatório']);
+    $errors = new MessageBag(['email' => ['Inválido', 'Outro'], 'nome' => 'Obrigatório']);
     $tpl = "@error('email')<e>{{ \$message }}</e>@enderror @error('x')<s>NAO</s>@enderror @error('nome')<n>{{ \$message }}</n>@enderror [{{ \$message ?? 'sem' }}]";
 
     expect(squished($tpl, ['errors' => $errors]))->toBe('<e>Inválido</e> <n>Obrigatório</n> [sem]')
@@ -279,14 +279,14 @@ it('@error expõe $message e restaura o anterior', function (): void {
 });
 
 it('@error aninhados', function (): void {
-    $errors = new ViewErrorBag(['a' => 'A!', 'b' => 'B!']);
+    $errors = new MessageBag(['a' => 'A!', 'b' => 'B!']);
 
     expect(V::render("@error('a'){{ \$message }}@error('b'){{ \$message }}@enderror {{ \$message }} @enderror", ['errors' => $errors]))
         ->toBe('A!B! A! ');
 });
 
 it('$errors tem any(), all() e first()', function (): void {
-    expect(squished('@if($errors->any())@foreach($errors->all() as $e)<{{ $e }}>@endforeach @endif', ['errors' => new ViewErrorBag(['a' => ['1', '2']])]))
+    expect(squished('@if($errors->any())@foreach($errors->all() as $e)<{{ $e }}>@endforeach @endif', ['errors' => new MessageBag(['a' => ['1', '2']])]))
         ->toBe('<1><2>')
         ->and(V::render('{{ $errors->any() ? "sim" : "não" }}'))->toBe('não');
 });

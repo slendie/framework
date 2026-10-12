@@ -7,6 +7,7 @@ namespace Slendie\View;
 use Slendie\Foundation\Application;
 use Slendie\Foundation\ServiceProvider;
 use Slendie\Support\Config;
+use Slendie\Validation\MessageBag;
 use Slendie\View\Compiler\BladeCompiler;
 
 /**
@@ -49,7 +50,7 @@ class ViewServiceProvider extends ServiceProvider
             return new Factory(
                 $app->make(Finder::class),
                 $app->make(Engine::class),
-                ['errors' => new ViewErrorBag()],
+                ['errors' => new MessageBag()],
                 $app,
             );
         });

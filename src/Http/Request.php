@@ -11,6 +11,7 @@ use Slendie\Routing\Route;
 use Slendie\Session\Session;
 use Slendie\Support\Arr;
 use Slendie\Support\Str;
+use Slendie\Validation\Validator;
 
 class Request
 {
@@ -713,12 +714,29 @@ class Request
     }
 
     /**
+     * Valida o input (incluindo ficheiros) e devolve só os campos validados.
+     * Em caso de falha lança ValidationException (o Handler faz redirect com erros ou responde 422 JSON).
+     *
      * @param  array<string, mixed>  $rules
+     * @param  array<string, string|array<string, string>>  $messages
+     * @param  array<string, string>  $attributes
+     * @return array<string, mixed>
      */
-    public function validate(array $rules): never
+    public function validate(array $rules, array $messages = [], array $attributes = []): array
     {
-        // TODO(core-04-08): validação.
-        throw new RuntimeException('Request::validate() fica disponível na peça core-04-08.');
+        return $this->validator($rules, $messages, $attributes)->validate();
+    }
+
+    /**
+     * Cria o Validator sobre o input do pedido, sem o executar.
+     *
+     * @param  array<string, mixed>  $rules
+     * @param  array<string, string|array<string, string>>  $messages
+     * @param  array<string, string>  $attributes
+     */
+    public function validator(array $rules, array $messages = [], array $attributes = []): Validator
+    {
+        return Validator::make($this->all(), $rules, $messages, $attributes);
     }
 
     public function setUserResolver(Closure $resolver): static

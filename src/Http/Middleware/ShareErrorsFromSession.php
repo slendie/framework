@@ -9,10 +9,10 @@ use Slendie\Contracts\ViewFactory;
 use Slendie\Foundation\Application;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
-use Slendie\View\ViewErrorBag;
+use Slendie\Validation\MessageBag;
 
 /**
- * Disponibiliza `$errors` às views a partir do flash `errors` da sessão.
+ * Disponibiliza `$errors` (um MessageBag) às views a partir do flash `errors` da sessão.
  */
 class ShareErrorsFromSession
 {
@@ -22,17 +22,19 @@ class ShareErrorsFromSession
 
     public function handle(Request $request, Closure $next): Response
     {
-        $errors = $request->hasSession() ? $request->session()->get('errors', []) : [];
-        $errors = is_array($errors) ? $errors : [];
+        $flashed = $request->hasSession() ? $request->session()->get('errors', []) : [];
+        $flashed = is_array($flashed) ? $flashed : [];
 
-        // Peça 08: o ViewErrorBag passa a MessageBag.
+        $default = $flashed['default'] ?? [];
+        $errors = new MessageBag(is_array($default) ? $default : []);
+
         $request->setAttribute('errors', $errors);
 
         if ($this->app->bound('view')) {
             $view = $this->app->make('view');
 
             if ($view instanceof ViewFactory) {
-                $view->share('errors', ViewErrorBag::fromSession($errors));
+                $view->share('errors', $errors);
             }
         }
 

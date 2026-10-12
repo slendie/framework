@@ -26,6 +26,7 @@ use Slendie\Session\SessionServiceProvider;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Facade;
+use Slendie\Validation\ValidationServiceProvider;
 use Slendie\View\ViewServiceProvider;
 
 class Application extends Container
@@ -51,6 +52,7 @@ class Application extends Container
         SessionServiceProvider::class,
         ViewServiceProvider::class,
         DatabaseServiceProvider::class,
+        ValidationServiceProvider::class,
         ConsoleServiceProvider::class,
         // Peças seguintes: Validation, packages, ...
     ];

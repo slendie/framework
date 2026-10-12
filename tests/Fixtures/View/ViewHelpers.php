@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Slendie\Tests\Fixtures\View;
 
 use Slendie\Container\Container;
+use Slendie\Validation\MessageBag;
 use Slendie\View\Compiler\BladeCompiler;
 use Slendie\View\Engine;
 use Slendie\View\Factory;
 use Slendie\View\Finder;
-use Slendie\View\ViewErrorBag;
 
 /**
  * Monta uma Factory real sobre pastas temporárias, sem precisar de uma Application.
@@ -45,7 +45,7 @@ final class ViewHelpers
         return new Factory(
             new Finder([$dir.'/views']),
             new Engine($compiler),
-            ['errors' => new ViewErrorBag()],
+            ['errors' => new MessageBag()],
             $container,
         );
     }

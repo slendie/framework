@@ -18,6 +18,8 @@ use Slendie\Session\Session;
 use Slendie\Support\Config;
 use Slendie\Support\Env;
 use Slendie\Support\Str;
+use Slendie\Validation\Factory as ValidationFactory;
+use Slendie\Validation\Validator;
 use Slendie\View\Factory as ViewEngineFactory;
 use Slendie\View\View;
 
@@ -544,5 +546,65 @@ if (! function_exists('vite')) {
     function vite(string|array $entries = []): string
     {
         return '';
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Validação e traduções (peça core-04-08)
+// -----------------------------------------------------------------------------
+
+if (! function_exists('__')) {
+    /**
+     * Traduz uma chave (`validation.required`, `pacote::ficheiro.chave`); devolve a própria chave se não existir.
+     *
+     * @param  array<string, mixed>  $replace
+     */
+    function __(?string $key = null, array $replace = [], ?string $locale = null): ?string
+    {
+        if ($key === null) {
+            return null;
+        }
+
+        return ValidationFactory::resolve()->getTranslator()->get($key, $replace, $locale);
+    }
+}
+
+if (! function_exists('trans')) {
+    /**
+     * @param  array<string, mixed>  $replace
+     */
+    function trans(?string $key = null, array $replace = [], ?string $locale = null): ?string
+    {
+        return __($key, $replace, $locale);
+    }
+}
+
+if (! function_exists('trans_choice')) {
+    /**
+     * Traduz com pluralização simples (`{0} nenhum|{1} um|[2,*] :count`).
+     *
+     * @param  array<string, mixed>  $replace
+     */
+    function trans_choice(string $key, int|float $number, array $replace = [], ?string $locale = null): string
+    {
+        return ValidationFactory::resolve()->getTranslator()->choice($key, $number, $replace, $locale);
+    }
+}
+
+if (! function_exists('validator')) {
+    /**
+     * Sem argumentos devolve o Factory de validadores; com dados cria um Validator.
+     *
+     * @param  array<array-key, mixed>|null  $data
+     * @param  array<string, mixed>  $rules
+     * @param  array<string, string>  $messages
+     * @param  array<string, string>  $attributes
+     * @return ($data is null ? ValidationFactory : Validator)
+     */
+    function validator(?array $data = null, array $rules = [], array $messages = [], array $attributes = []): ValidationFactory|Validator
+    {
+        $factory = ValidationFactory::resolve();
+
+        return $data === null ? $factory : $factory->make($data, $rules, $messages, $attributes);
     }
 }

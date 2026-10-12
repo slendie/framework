@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use RuntimeException;
 use Slendie\Container\Container;
 use Slendie\Session\Session;
+use Slendie\Validation\MessageBag;
+use Slendie\Validation\Validator;
 
 class RedirectResponse extends Response
 {
@@ -82,13 +84,18 @@ class RedirectResponse extends Response
     }
 
     /**
-     * Guarda erros em flash `errors` (a MessageBag chega na peça 08; por agora um array).
+     * Guarda erros em flash `errors` (lidos como MessageBag pelo ShareErrorsFromSession).
      *
-     * @param  array<string, mixed>|string  $errors
+     * @param  MessageBag|Validator|array<string, mixed>|string  $errors
      */
-    public function withErrors(array|string $errors, string $bag = 'default'): static
+    public function withErrors(MessageBag|Validator|array|string $errors, string $bag = 'default'): static
     {
-        $errors = is_string($errors) ? ['error' => [$errors]] : $errors;
+        $errors = match (true) {
+            $errors instanceof Validator => $errors->errors()->getMessages(),
+            $errors instanceof MessageBag => $errors->getMessages(),
+            is_string($errors) => ['error' => [$errors]],
+            default => (new MessageBag($errors))->getMessages(),
+        };
 
         $session = $this->session();
         $current = $session->get('errors', []);
