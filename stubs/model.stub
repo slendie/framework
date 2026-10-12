@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Model\Model;
+
+final class {{ class }} extends Model
+{
+    /** @var list<string> */
+    protected array $fillable = [];
+}

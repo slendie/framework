@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Console\Command;
+
+final class {{ class }} extends Command
+{
+    protected string $signature = '{{ command }}';
+
+    protected string $description = 'Descreve o comando';
+
+    public function handle(): int
+    {
+        $this->info('Feito.');
+
+        return self::SUCCESS;
+    }
+}

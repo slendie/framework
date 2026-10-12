@@ -1,0 +1,54 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ namespacedModel }};
+use Slendie\Http\Controller;
+use Slendie\Http\Request;
+
+final class {{ class }} extends Controller
+{
+    /** Lista os registos. */
+    public function index()
+    {
+        //
+    }
+
+    /** Mostra o formulário de criação. */
+    public function create()
+    {
+        //
+    }
+
+    /** Guarda um novo registo. */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /** Mostra um registo. */
+    public function show({{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+
+    /** Mostra o formulário de edição. */
+    public function edit({{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+
+    /** Actualiza um registo. */
+    public function update(Request $request, {{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+
+    /** Apaga um registo. */
+    public function destroy({{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+}

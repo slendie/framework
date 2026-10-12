@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Http\Controller;
+use Slendie\Http\Request;
+
+final class {{ class }} extends Controller
+{
+    /** Lista os registos. */
+    public function index()
+    {
+        //
+    }
+
+    /** Mostra o formulário de criação. */
+    public function create()
+    {
+        //
+    }
+
+    /** Guarda um novo registo. */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /** Mostra um registo. */
+    public function show(string $id)
+    {
+        //
+    }
+
+    /** Mostra o formulário de edição. */
+    public function edit(string $id)
+    {
+        //
+    }
+
+    /** Actualiza um registo. */
+    public function update(Request $request, string $id)
+    {
+        //
+    }
+
+    /** Apaga um registo. */
+    public function destroy(string $id)
+    {
+        //
+    }
+}

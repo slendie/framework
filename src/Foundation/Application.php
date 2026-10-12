@@ -6,6 +6,8 @@ namespace Slendie\Foundation;
 
 use Closure;
 use LogicException;
+use Slendie\Console\Application as ConsoleApplication;
+use Slendie\Console\ConsoleServiceProvider;
 use Slendie\Container\Container;
 use Slendie\Database\DatabaseServiceProvider;
 use Slendie\Foundation\Bootstrap\BootProviders;
@@ -49,7 +51,8 @@ class Application extends Container
         SessionServiceProvider::class,
         ViewServiceProvider::class,
         DatabaseServiceProvider::class,
-        // Peças seguintes: Console, ...
+        ConsoleServiceProvider::class,
+        // Peças seguintes: Validation, packages, ...
     ];
 
     protected string $basePath;
@@ -102,6 +105,9 @@ class Application extends Container
         $this->singleton(Router::class);
         $this->alias(Router::class, 'router');
         $this->singleton(Kernel::class);
+
+        // `php slendie` resolve a aplicação de consola antes do bootstrap: os comandos dos providers vão para a mesma instância.
+        $this->singleton(ConsoleApplication::class);
     }
 
     public function version(): string

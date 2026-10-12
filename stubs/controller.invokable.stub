@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Http\Controller;
+use Slendie\Http\Request;
+
+final class {{ class }} extends Controller
+{
+    public function __invoke(Request $request)
+    {
+        //
+    }
+}

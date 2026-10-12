@@ -6,6 +6,8 @@ namespace Slendie\Foundation;
 
 use Closure;
 use LogicException;
+use Slendie\Console\Application as ConsoleApplication;
+use Slendie\Console\Command;
 use Slendie\Support\Config;
 
 /**
@@ -206,11 +208,21 @@ abstract class ServiceProvider
     }
 
     /**
-     * @param  string|list<string>  $commands
+     * Regista comandos de consola (só quando corre em CLI): `php slendie` passa a conhecê-los.
+     *
+     * @param  class-string<Command>|list<class-string<Command>>  $commands
      */
     protected function commands(string|array $commands): void
     {
-        $this->notYetAvailable(__FUNCTION__, 'core-04-07');
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
+        $commands = array_values((array) $commands);
+
+        $this->callAfterResolving(ConsoleApplication::class, static function (ConsoleApplication $console) use ($commands): void {
+            $console->resolveCommands($commands);
+        });
     }
 
     /**

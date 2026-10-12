@@ -74,9 +74,9 @@ class Migrator
     }
 
     /**
-     * @param  Closure(string): void  $writer
+     * @param  (Closure(string): void)|null  $writer  null deixa de emitir mensagens
      */
-    public function setOutput(Closure $writer): static
+    public function setOutput(?Closure $writer): static
     {
         $this->output = $writer;
 

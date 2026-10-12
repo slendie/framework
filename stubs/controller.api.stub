@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Http\Controller;
+use Slendie\Http\Request;
+
+final class {{ class }} extends Controller
+{
+    /** Lista os registos. */
+    public function index()
+    {
+        //
+    }
+
+    /** Guarda um novo registo. */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /** Mostra um registo. */
+    public function show(string $id)
+    {
+        //
+    }
+
+    /** Actualiza um registo. */
+    public function update(Request $request, string $id)
+    {
+        //
+    }
+
+    /** Apaga um registo. */
+    public function destroy(string $id)
+    {
+        //
+    }
+}

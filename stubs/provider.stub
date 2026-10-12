@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Slendie\Foundation\ServiceProvider;
+
+final class {{ class }} extends ServiceProvider
+{
+    /** Apenas bindings no container. */
+    public function register(): void
+    {
+        //
+    }
+
+    /** Corre depois de todos os providers estarem registados. */
+    public function boot(): void
+    {
+        //
+    }
+}
