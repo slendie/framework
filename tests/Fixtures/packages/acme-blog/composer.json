@@ -1,0 +1,17 @@
+{
+    "name": "acme/blog",
+    "description": "Package fictício usado nos testes de descoberta e do ServiceProvider.",
+    "type": "library",
+    "require": {
+        "slendie/framework": "^4.0"
+    },
+    "autoload": {
+        "psr-4": { "Acme\\Blog\\": "src/" }
+    },
+    "extra": {
+        "slendie": {
+            "providers": ["Acme\\Blog\\AcmeServiceProvider"],
+            "aliases": { "AcmeFacade": "Acme\\Blog\\AcmeFacade" }
+        }
+    }
+}
