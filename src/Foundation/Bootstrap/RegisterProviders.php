@@ -6,28 +6,39 @@ namespace Slendie\Foundation\Bootstrap;
 
 use LogicException;
 use Slendie\Foundation\Application;
+use Slendie\Foundation\PackageDiscovery;
 use Slendie\Foundation\ServiceProvider;
 use Slendie\Support\Config;
 
 /**
- * Regista os providers da framework, os de bootstrap/providers.php e os de config('app.providers').
- * A descoberta de packages (vendor) é acrescentada na peça 09.
+ * Regista os providers da framework, os dos packages descobertos (vendor), os de bootstrap/providers.php
+ * e os de config('app.providers').
  */
 final class RegisterProviders
 {
     public function bootstrap(Application $app): void
     {
-        foreach ($this->collect($app) as $provider) {
+        $manifest = (new PackageDiscovery())->load($app->basePath('vendor'), $app->bootstrapPath('cache/packages.php'));
+
+        foreach ($manifest['aliases'] as $alias => $class) {
+            if (! class_exists($alias, false) && class_exists($class)) {
+                class_alias($class, $alias);
+            }
+        }
+
+        foreach ($this->collect($app, $manifest['providers']) as $provider) {
             $app->register($provider);
         }
     }
 
     /**
+     * @param  list<string>  $discovered
      * @return list<class-string<ServiceProvider>>
      */
-    private function collect(Application $app): array
+    private function collect(Application $app, array $discovered): array
     {
-        $providers = $app->getFrameworkProviders();
+        /** @var list<class-string<ServiceProvider>> $providers */
+        $providers = [...$app->getFrameworkProviders(), ...$discovered];
 
         $file = $app->bootstrapPath('providers.php');
 
@@ -59,8 +70,6 @@ final class RegisterProviders
                 $providers = [...$providers, ...$extra];
             }
         }
-
-        // TODO(core-04-09): juntar PackageDiscovery::discover(vendor).
 
         return array_values(array_unique($providers));
     }

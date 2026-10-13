@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Slendie\View\Compiler;
 
+use Closure;
 use RuntimeException;
 use Slendie\View\CompileException;
 use Slendie\View\Compiler\Directives\Assets;
@@ -51,6 +52,9 @@ class BladeCompiler
 
     /** @var array<string, callable> */
     protected array $customDirectives = [];
+
+    /** @var array<string, Closure> condições criadas com if() */
+    protected static array $conditions = [];
 
     /** @var array<string, string> token => PHP/texto final */
     protected array $rawBlocks = [];
@@ -196,6 +200,38 @@ class BladeCompiler
         }
 
         $this->customDirectives[$name] = $handler;
+    }
+
+    /**
+     * Cria `@nome`, `@elsenome` e `@endnome` a partir de uma condição:
+     * `Blade::if('admin', fn () => auth()->user()?->isAdmin())` → `@admin ... @elseadmin ... @else ... @endadmin`.
+     * Os argumentos da directiva (`@role('editor')`) chegam ao Closure.
+     */
+    public function if(string $name, Closure $condition): void
+    {
+        static::$conditions[$name] = $condition;
+
+        $call = static fn (string $expression): string => var_export($name, true).($expression === '' ? '' : ', '.$expression);
+
+        $this->directive($name, static fn (string $expression): string => '<?php if (\Slendie\View\Compiler\BladeCompiler::check('.$call($expression).')): ?>');
+        $this->directive('else'.$name, static fn (string $expression): string => '<?php elseif (\Slendie\View\Compiler\BladeCompiler::check('.$call($expression).')): ?>');
+        $this->directive('end'.$name, static fn (): string => '<?php endif; ?>');
+    }
+
+    /** Esquece as condições registadas (testes). */
+    public static function flushConditions(): void
+    {
+        static::$conditions = [];
+    }
+
+    /** Avalia uma condição criada com `if()` (usado pelo código compilado). */
+    public static function check(string $name, mixed ...$arguments): bool
+    {
+        if (! isset(static::$conditions[$name])) {
+            throw new \InvalidArgumentException("A condição Blade [{$name}] não está definida.");
+        }
+
+        return (bool) (static::$conditions[$name])(...$arguments);
     }
 
     /** @return array<string, callable> */

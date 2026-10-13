@@ -237,7 +237,7 @@ it('about mostra ambiente, base de dados, providers e packages', function (): vo
     [$code, $output] = ConsoleProject::make()->artisan('about');
 
     expect($code)->toBe(0)
-        ->and($output)->toMatch('/Slendie\s+4\.0\.0-dev/')
+        ->and($output)->toMatch('/Slendie\s+4\.0\.0\b/')
         ->and($output)->toMatch('/PHP\s+'.preg_quote(PHP_VERSION, '/').'/')
         ->and($output)->toMatch('/Ambiente\s+local/')
         ->and($output)->toMatch('/Debug\s+OFF/')

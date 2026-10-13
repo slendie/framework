@@ -8,7 +8,12 @@ use Closure;
 use LogicException;
 use Slendie\Console\Application as ConsoleApplication;
 use Slendie\Console\Command;
+use Slendie\Database\Migrations\Migrator;
+use Slendie\Routing\Router;
 use Slendie\Support\Config;
+use Slendie\Validation\Translator;
+use Slendie\View\Compiler\BladeCompiler;
+use Slendie\View\Finder;
 
 /**
  * Único ponto de extensão da framework: a aplicação e os packages registam serviços aqui.
@@ -26,6 +31,9 @@ abstract class ServiceProvider
 
     /** @var array<string, list<class-string<ServiceProvider>>> grupo => providers */
     protected static array $publishGroups = [];
+
+    /** @var array<string, true> origens publicadas como migrações (os timestamps renomeiam-se ao publicar) */
+    protected static array $migrationPublishes = [];
 
     /** @var list<Closure> */
     protected array $bootingCallbacks = [];
@@ -94,7 +102,7 @@ abstract class ServiceProvider
     }
 
     // -------------------------------------------------------------------------
-    // Helpers de registo (os que dependem de peças futuras lançam LogicException)
+    // Helpers de registo
     // -------------------------------------------------------------------------
 
     /**
@@ -116,19 +124,34 @@ abstract class ServiceProvider
     }
 
     /**
+     * Carrega um ficheiro de rotas (ou, com $path, as rotas de um package) dentro de um grupo.
+     *
      * @param  array<string, mixed>  $attributes
      */
     protected function loadRoutesFrom(string $path, array $attributes = ['middleware' => 'web']): void
     {
-        $this->notYetAvailable(__FUNCTION__, 'core-04-09');
+        $this->app->booted(function () use ($path, $attributes): void {
+            $this->router()->group($attributes, $path);
+        });
     }
 
     /**
+     * Regista as views de um package: `view('acme::index')`. Se o projecto tiver `resources/views/vendor/{namespace}`,
+     * essa pasta tem prioridade (override).
+     *
      * @param  string|list<string>  $path
      */
     protected function loadViewsFrom(string|array $path, string $namespace): void
     {
-        $this->notYetAvailable(__FUNCTION__, 'core-04-09');
+        $this->callAfterResolving(Finder::class, function (Finder $finder) use ($path, $namespace): void {
+            $finder->addNamespace($namespace, $path);
+
+            $override = $this->app->resourcePath('views/vendor/'.$namespace);
+
+            if (is_dir($override)) {
+                $finder->prependNamespace($namespace, $override);
+            }
+        });
     }
 
     /**
@@ -136,12 +159,21 @@ abstract class ServiceProvider
      */
     protected function loadMigrationsFrom(string|array $paths): void
     {
-        $this->notYetAvailable(__FUNCTION__, 'core-04-09');
+        $this->callAfterResolving(Migrator::class, static function (Migrator $migrator) use ($paths): void {
+            foreach ((array) $paths as $path) {
+                $migrator->path($path);
+            }
+        });
     }
 
+    /**
+     * Traduções de um package: `__('acme::mensagens.ola')`. O projecto sobrepõe em `lang/vendor/{namespace}`.
+     */
     protected function loadTranslationsFrom(string $path, string $namespace): void
     {
-        $this->notYetAvailable(__FUNCTION__, 'core-04-09');
+        $this->callAfterResolving(Translator::class, static function (Translator $translator) use ($path, $namespace): void {
+            $translator->addNamespace($namespace, $path);
+        });
     }
 
     /**
@@ -160,6 +192,26 @@ abstract class ServiceProvider
             static::$publishGroups[$group][] = $class;
             static::$publishGroups[$group] = array_values(array_unique(static::$publishGroups[$group]));
         }
+    }
+
+    /**
+     * Como publishes(), mas para migrações: ao publicar, os timestamps dos ficheiros passam a ser "agora".
+     *
+     * @param  array<string, string>  $paths  origem => destino
+     * @param  string|list<string>|null  $groups
+     */
+    protected function publishesMigrations(array $paths, string|array|null $groups = null): void
+    {
+        foreach (array_keys($paths) as $from) {
+            static::$migrationPublishes[$from] = true;
+        }
+
+        $this->publishes($paths, $groups);
+    }
+
+    public static function isMigrationPublish(string $from): bool
+    {
+        return isset(static::$migrationPublishes[$from]);
     }
 
     /**
@@ -205,6 +257,7 @@ abstract class ServiceProvider
     {
         static::$publishes = [];
         static::$publishGroups = [];
+        static::$migrationPublishes = [];
     }
 
     /**
@@ -237,8 +290,13 @@ abstract class ServiceProvider
         }
     }
 
-    private function notYetAvailable(string $method, string $piece): never
+    protected function router(): Router
     {
-        throw new LogicException("ServiceProvider::{$method}() fica disponível na peça {$piece}.");
+        return $this->app->make(Router::class);
+    }
+
+    protected function blade(): BladeCompiler
+    {
+        return $this->app->make(BladeCompiler::class);
     }
 }

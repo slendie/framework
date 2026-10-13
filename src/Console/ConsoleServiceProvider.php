@@ -23,6 +23,7 @@ class ConsoleServiceProvider extends ServiceProvider
     /** @var list<class-string<Command>> */
     public const array COMMANDS = [
         Commands\AboutCommand::class,
+        Commands\AiContextCommand::class,
         Commands\DbSeedCommand::class,
         Commands\DbWipeCommand::class,
         Commands\EnvCommand::class,
@@ -43,6 +44,7 @@ class ConsoleServiceProvider extends ServiceProvider
         Commands\MigrateResetCommand::class,
         Commands\MigrateRollbackCommand::class,
         Commands\MigrateStatusCommand::class,
+        Commands\PackageDiscoverCommand::class,
         Commands\RouteListCommand::class,
         Commands\ServeCommand::class,
         Commands\VendorPublishCommand::class,

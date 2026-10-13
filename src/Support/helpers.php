@@ -538,14 +538,54 @@ if (! function_exists('view')) {
 
 if (! function_exists('vite')) {
     /**
-     * Tags de assets do Vite para @vite(...).
-     * TODO(core-04-09): ligar à classe Vite real (manifest, dev server, preload).
+     * Tags de assets do Vite (o mesmo que a directiva `@vite(...)`).
      *
      * @param  string|list<string>  $entries
      */
-    function vite(string|array $entries = []): string
+    function vite(string|array $entries = [], ?string $buildDirectory = null): string
     {
-        return '';
+        /** @var \Slendie\Support\Vite $vite */
+        $vite = app(\Slendie\Support\Vite::class);
+
+        return $vite($entries, $buildDirectory);
+    }
+}
+
+if (! function_exists('logger')) {
+    /**
+     * Sem argumentos devolve o Logger; com uma mensagem regista-a em `debug`.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    function logger(?string $message = null, array $context = []): ?\Slendie\Log\Logger
+    {
+        /** @var \Slendie\Log\Logger $logger */
+        $logger = app(\Slendie\Log\Logger::class);
+
+        if ($message === null) {
+            return $logger;
+        }
+
+        $logger->debug($message, $context);
+
+        return null;
+    }
+}
+
+if (! function_exists('report')) {
+    /**
+     * Regista uma excepção (via Handler, respeitando dontReport) sem interromper a execução.
+     */
+    function report(Throwable|string $exception): void
+    {
+        $exception = is_string($exception) ? new RuntimeException($exception) : $exception;
+
+        $app = app();
+        $handler = $app->bound(\Slendie\Foundation\Exceptions\Handler::class)
+            ? $app->make(\Slendie\Foundation\Exceptions\Handler::class)
+            : new \Slendie\Foundation\Exceptions\Handler($app);
+
+        $handler->report($exception);
     }
 }
 

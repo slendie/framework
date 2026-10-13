@@ -19,6 +19,7 @@ use Slendie\Foundation\Configuration\ApplicationBuilder;
 use Slendie\Http\Kernel;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
+use Slendie\Log\LogServiceProvider;
 use Slendie\Routing\RouteCollection;
 use Slendie\Routing\Router;
 use Slendie\Routing\RoutingServiceProvider;
@@ -31,7 +32,7 @@ use Slendie\View\ViewServiceProvider;
 
 class Application extends Container
 {
-    public const string VERSION = '4.0.0-dev';
+    public const string VERSION = '4.0.0';
 
     /** Bootstrappers por defeito, pela ordem. @var list<class-string> */
     public const array BOOTSTRAPPERS = [
@@ -54,7 +55,7 @@ class Application extends Container
         DatabaseServiceProvider::class,
         ValidationServiceProvider::class,
         ConsoleServiceProvider::class,
-        // Peças seguintes: Validation, packages, ...
+        LogServiceProvider::class,
     ];
 
     protected string $basePath;
@@ -392,6 +393,26 @@ class Application extends Container
         }
 
         return new $provider($this);
+    }
+
+    /**
+     * Regista todos os providers: os da framework, os dos packages descobertos, os de bootstrap/providers.php e de config.
+     */
+    public function registerConfiguredProviders(): void
+    {
+        (new RegisterProviders())->bootstrap($this);
+    }
+
+    /**
+     * Declara serviços adiados: o provider só corre quando um deles for pedido ao container.
+     *
+     * @param  array<string, class-string<ServiceProvider>>  $services
+     */
+    public function addDeferredServices(array $services): void
+    {
+        foreach ($services as $service => $provider) {
+            $this->deferredServices[ltrim($service, '\\')] = $provider;
+        }
     }
 
     /**

@@ -12,6 +12,7 @@ use Slendie\Foundation\Application;
 use Slendie\Http\JsonResponse;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
+use Slendie\Log\Logger;
 use Slendie\Routing\Redirector;
 use Slendie\Support\Env;
 use Slendie\Validation\ValidationException;
@@ -86,30 +87,18 @@ class Handler
             return;
         }
 
-        // TODO(core-04-09): delegar no Logger (canais, daily).
-        $logFile = $this->app->storagePath('logs/slendie.log');
-        $dir = dirname($logFile);
-
-        if (! is_dir($dir) || ! is_writable($dir)) {
-            return;
+        try {
+            $this->logger()->error($e->getMessage(), ['exception' => $e]);
+        } catch (Throwable) {
+            // Registar nunca pode ser a causa de um novo erro.
         }
+    }
 
-        $context = json_encode([
-            'exception' => $e::class,
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
-
-        $entry = sprintf(
-            "[%s] %s.ERROR: %s %s\n%s\n",
-            date('Y-m-d H:i:s'),
-            $this->app->environment(),
-            $e->getMessage(),
-            $context,
-            $e->getTraceAsString(),
-        );
-
-        @file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+    protected function logger(): Logger
+    {
+        return $this->app->bound(Logger::class)
+            ? $this->app->make(Logger::class)
+            : new Logger($this->app->storagePath(), fn (): string => (string) $this->app->environment());
     }
 
     // -------------------------------------------------------------------------

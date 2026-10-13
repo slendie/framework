@@ -156,7 +156,8 @@ it('report() regista no log (excepto HttpException) com o formato esperado', fun
 
     $log = (string) file_get_contents($logDir.'/slendie.log');
 
-    expect($log)->toMatch('/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] testing\.ERROR: falha grave \{"exception":"RuntimeException"/')
+    expect($log)->toMatch('/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] testing\.ERROR: falha grave\R\[exception\] RuntimeException: falha grave in .+HandlerTest\.php:\d+/')
+        ->and($log)->toContain('[stacktrace]')
         ->and($log)->toContain('#0');
 });
 

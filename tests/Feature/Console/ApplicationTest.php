@@ -44,7 +44,7 @@ it('sem argumentos lista os comandos por grupos', function (): void {
     [$code, $output] = ConsoleProject::make()->artisan('');
 
     expect($code)->toBe(0)
-        ->and($output)->toContain('Slendie Framework 4.0.0-dev')
+        ->and($output)->toContain('Slendie Framework 4.0.0')
         ->and($output)->toContain('Comandos disponíveis')
         ->and($output)->toMatch('/\bmigrate:status\s+Mostra o estado de cada migração/')
         ->and($output)->toMatch('/\bmake:controller\b/')
@@ -99,7 +99,7 @@ it('help de um comando inexistente falha com sugestão', function (): void {
 it('--version mostra a versão', function (): void {
     [$code, $output] = ConsoleProject::make()->artisan('--version');
 
-    expect($code)->toBe(0)->and($output)->toContain('Slendie Framework 4.0.0-dev');
+    expect($code)->toBe(0)->and($output)->toContain('Slendie Framework 4.0.0');
 });
 
 it('comando desconhecido sugere os parecidos e devolve 1', function (string $typed, array $suggested): void {

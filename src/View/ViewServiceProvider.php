@@ -7,6 +7,7 @@ namespace Slendie\View;
 use Slendie\Foundation\Application;
 use Slendie\Foundation\ServiceProvider;
 use Slendie\Support\Config;
+use Slendie\Support\Vite;
 use Slendie\Validation\MessageBag;
 use Slendie\View\Compiler\BladeCompiler;
 
@@ -55,6 +56,9 @@ class ViewServiceProvider extends ServiceProvider
             );
         });
         $this->app->alias(Factory::class, 'view');
+
+        // Assets do Vite (@vite, @viteReactRefresh, vite()): public/hot ou public/build/manifest.json.
+        $this->app->singleton(Vite::class, fn (Application $app): Vite => new Vite($app->publicPath()));
     }
 
     protected function config(string $key): mixed

@@ -6,6 +6,7 @@ namespace Slendie\Console\Commands;
 
 use Slendie\Console\Command;
 use Slendie\Foundation\Application;
+use Slendie\Foundation\PackageDiscovery;
 use Slendie\Support\Config;
 
 final class AboutCommand extends Command
@@ -34,7 +35,10 @@ final class AboutCommand extends Command
 
         $providers = array_keys($app->getLoadedProviders());
         $sections['Providers'] = $providers === [] ? ['—' => ''] : array_fill_keys($providers, '');
-        $sections['Packages'] = ['Descobertos' => 'nenhum'];
+        $packages = (new PackageDiscovery())->load($app->basePath('vendor'), $app->bootstrapPath('cache/packages.php'))['packages'];
+        $sections['Packages'] = $packages === []
+            ? ['Descobertos' => 'nenhum']
+            : array_map(static fn (array $providers): string => implode(', ', $providers), $packages);
 
         foreach ($sections as $title => $items) {
             $this->newLine();

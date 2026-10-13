@@ -10,6 +10,9 @@ use Slendie\Foundation\ServiceProvider;
 
 final class VendorPublishCommand extends Command
 {
+    /** Segundos acrescentados ao timestamp das migrações publicadas, para manterem a ordem. */
+    private int $migrationOffset = 0;
+
     protected string $signature = 'vendor:publish
         {--tag=* : Grupo a publicar (repetível)}
         {--provider= : Publica os ficheiros deste service provider}
@@ -109,8 +112,10 @@ final class VendorPublishCommand extends Command
 
     private function publish(Application $app, string $from, string $to): bool
     {
+        $migrations = ServiceProvider::isMigrationPublish($from);
+
         if (is_file($from)) {
-            return $this->publishFile($app, $from, $to);
+            return $this->publishFile($app, $from, $migrations ? $this->migrationTarget($to) : $to);
         }
 
         if (! is_dir($from)) {
@@ -131,10 +136,29 @@ final class VendorPublishCommand extends Command
             }
 
             $relative = substr($item->getPathname(), strlen(rtrim($from, '/\\')) + 1);
-            $ok = $this->publishFile($app, $item->getPathname(), rtrim($to, '/\\').DIRECTORY_SEPARATOR.$relative) && $ok;
+            $target = rtrim($to, '/\\').DIRECTORY_SEPARATOR.$relative;
+            $ok = $this->publishFile($app, $item->getPathname(), $migrations ? $this->migrationTarget($target) : $target) && $ok;
         }
 
         return $ok;
+    }
+
+    /**
+     * `.../2024_01_01_000000_create_x.php` → `.../{agora}_create_x.php`; se já existir uma migração com o mesmo nome
+     * (qualquer timestamp), devolve esse caminho — assim republicar não duplica a migração.
+     */
+    private function migrationTarget(string $to): string
+    {
+        $directory = dirname($to);
+        $name = preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($to)) ?? basename($to);
+
+        foreach (glob($directory.DIRECTORY_SEPARATOR.'*_'.$name) ?: [] as $existing) {
+            if (preg_match('/^\d{4}_\d{2}_\d{2}_\d{6}_'.preg_quote($name, '/').'$/', basename($existing)) === 1) {
+                return $existing;
+            }
+        }
+
+        return $directory.DIRECTORY_SEPARATOR.date('Y_m_d_His', time() + $this->migrationOffset++).'_'.$name;
     }
 
     private function publishFile(Application $app, string $from, string $to): bool
