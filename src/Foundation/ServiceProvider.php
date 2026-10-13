@@ -32,6 +32,9 @@ abstract class ServiceProvider
     /** @var array<string, list<class-string<ServiceProvider>>> grupo => providers */
     protected static array $publishGroups = [];
 
+    /** @var array<string, array<class-string<ServiceProvider>, array<string, string>>> grupo => provider => [origem => destino] */
+    protected static array $groupPaths = [];
+
     /** @var array<string, true> origens publicadas como migrações (os timestamps renomeiam-se ao publicar) */
     protected static array $migrationPublishes = [];
 
@@ -191,6 +194,7 @@ abstract class ServiceProvider
         foreach ((array) ($groups ?? []) as $group) {
             static::$publishGroups[$group][] = $class;
             static::$publishGroups[$group] = array_values(array_unique(static::$publishGroups[$group]));
+            static::$groupPaths[$group][$class] = [...(static::$groupPaths[$group][$class] ?? []), ...$paths];
         }
     }
 
@@ -222,7 +226,7 @@ abstract class ServiceProvider
         if ($provider !== null && $group !== null) {
             $providers = static::$publishGroups[$group] ?? [];
 
-            return in_array($provider, $providers, true) ? (static::$publishes[$provider] ?? []) : [];
+            return in_array($provider, $providers, true) ? (static::$groupPaths[$group][$provider] ?? []) : [];
         }
 
         if ($provider !== null) {
@@ -232,7 +236,7 @@ abstract class ServiceProvider
         if ($group !== null) {
             $paths = [];
             foreach (static::$publishGroups[$group] ?? [] as $class) {
-                $paths = [...$paths, ...(static::$publishes[$class] ?? [])];
+                $paths = [...$paths, ...(static::$groupPaths[$group][$class] ?? [])];
             }
 
             return $paths;
@@ -257,6 +261,7 @@ abstract class ServiceProvider
     {
         static::$publishes = [];
         static::$publishGroups = [];
+        static::$groupPaths = [];
         static::$migrationPublishes = [];
     }
 
