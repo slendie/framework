@@ -80,6 +80,11 @@ class Kernel
 
             $response = $this->sendRequestThroughRouter($request);
         } catch (Throwable $e) {
+            // Testes: `withoutExceptionHandling()` quer ver a excepção original em vez de uma página de erro.
+            if ($this->app->bound('testing.exceptions.throw')) {
+                throw $e;
+            }
+
             $this->reportException($e);
 
             $response = $this->renderException($request, $e);

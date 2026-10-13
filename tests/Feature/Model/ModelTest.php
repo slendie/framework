@@ -786,3 +786,12 @@ it('onlyTrashed()->restore() repõe em massa; restore sem SoftDeletes falha', fu
 
     expect(fn () => Lead::query()->restore())->toThrow(LogicException::class);
 });
+
+it('a relação expõe a query, o pai e o model relacionado', function (): void {
+    $lead = Lead::create(['name' => 'Ana']);
+    $relation = $lead->notes();
+
+    expect($relation->getParent())->toBe($lead)
+        ->and($relation->getRelated())->toBeInstanceOf(Note::class)
+        ->and($relation->getQuery())->toBeInstanceOf(Slendie\Model\Builder::class);
+});

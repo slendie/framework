@@ -74,6 +74,10 @@ class Pipeline
             if (is_string($pipe)) {
                 [$name, $parameters] = $this->parsePipeString($pipe);
 
+                if ($this->isDisabled($name)) {
+                    return $stack($passable);
+                }
+
                 $pipe = ($this->container ?? Container::getInstance())->make($name);
             }
 
@@ -83,6 +87,22 @@ class Pipeline
 
             return $pipe->{$this->method}($passable, $stack, ...$parameters);
         };
+    }
+
+    /**
+     * Testes: `withoutMiddleware()` regista `testing.middleware.disabled` (true = todos, ou a lista de classes).
+     */
+    protected function isDisabled(string $class): bool
+    {
+        $container = $this->container ?? Container::getInstance();
+
+        if (! $container->bound('testing.middleware.disabled')) {
+            return false;
+        }
+
+        $disabled = $container->make('testing.middleware.disabled');
+
+        return $disabled === true || (is_array($disabled) && in_array($class, $disabled, true));
     }
 
     /**

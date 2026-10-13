@@ -6,6 +6,7 @@ namespace Slendie\Http\Middleware;
 
 use Closure;
 use Slendie\Exceptions\TokenMismatchException;
+use Slendie\Foundation\Application;
 use Slendie\Http\Cookie;
 use Slendie\Http\Request;
 use Slendie\Http\Response;
@@ -24,12 +25,16 @@ class VerifyCsrfToken
      */
     protected array $except = [];
 
+    public function __construct(protected ?Application $app = null)
+    {
+    }
+
     /**
      * @throws TokenMismatchException
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($this->isReading($request) || $this->inExceptArray($request) || $this->tokensMatch($request)) {
+        if ($this->isReading($request) || $this->disabledForTests() || $this->inExceptArray($request) || $this->tokensMatch($request)) {
             /** @var Response $response */
             $response = $next($request);
 
@@ -37,6 +42,12 @@ class VerifyCsrfToken
         }
 
         throw new TokenMismatchException();
+    }
+
+    /** O Slendie\Testing\TestCase desliga o CSRF por omissão (`withCsrf()` volta a ligá-lo). */
+    protected function disabledForTests(): bool
+    {
+        return $this->app?->bound('testing.csrf.disabled') === true;
     }
 
     protected function isReading(Request $request): bool

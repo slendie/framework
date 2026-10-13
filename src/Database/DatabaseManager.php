@@ -40,6 +40,12 @@ class DatabaseManager
         return $this->connections[$name] ??= $this->makeConnection($name);
     }
 
+    /** Instala uma ligação já criada (testes: partilhar a mesma BD em memória entre aplicações). */
+    public function setConnection(string $name, Connection $connection): void
+    {
+        $this->connections[$name] = $connection;
+    }
+
     /** Esquece a ligação (a próxima chamada cria outra). */
     public function purge(?string $name = null): void
     {

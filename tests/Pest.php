@@ -13,8 +13,14 @@ declare(strict_types=1);
 use Slendie\Container\Container;
 use Slendie\Support\Env;
 use Slendie\Support\Facade;
+use Slendie\Testing\TestCase as TestingTestCase;
 
 pest()->beforeEach(function (): void {
+    // Os testes baseados em Slendie\Testing\TestCase gerem o seu próprio estado global.
+    if ($this instanceof TestingTestCase) {
+        return;
+    }
+
     Container::setInstance(null);
     Facade::setFacadeApplication(null);
     Facade::clearResolvedInstances();

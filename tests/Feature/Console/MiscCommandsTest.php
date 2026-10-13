@@ -283,3 +283,16 @@ it('serve: valida as opções e salta portas ocupadas sem lançar nada quando n�
 
     expect($code)->toBe(1)->and($output)->toContain('Não há nenhuma porta livre em 127.0.0.1');
 });
+
+it('serve: arranca o processo do servidor e devolve o código de saída dele', function (): void {
+    $project = ConsoleProject::make();
+    $probe = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
+    $port = (int) substr((string) stream_socket_get_name($probe, false), strlen('127.0.0.1:'));
+    fclose($probe);
+
+    // O projecto não tem pasta public/: o `php -S` recusa-se a arrancar e sai logo com erro (não fica pendurado).
+    [$code, $output] = $project->artisan("serve --port={$port}");
+
+    expect($output)->toContain("Server running on [http://127.0.0.1:{$port}]")
+        ->and($code)->not->toBe(0);
+});

@@ -28,6 +28,7 @@
         "ext-pdo_sqlite": "Base de dados por defeito",
         "ext-pdo_mysql": "Suporte a MySQL/MariaDB",
         "ext-pdo_pgsql": "Suporte a PostgreSQL",
+        "pestphp/pest": "Testes das aplicações: Slendie\\Testing\\TestCase, TestResponse, RefreshDatabase",
         "slendie/auth": "Autenticação por sessão e tokens",
         "slendie/react-admin": "Painel de leads em React"
     },
