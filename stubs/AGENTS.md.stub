@@ -1,0 +1,71 @@
+# AGENTS.md — {{ name }}
+
+Este projecto usa a **Slendie v4**, uma framework PHP pequena, com nomes e pastas parecidos com o Laravel.
+**Não é o Laravel.** Antes de usares uma API do Laravel, confirma que existe aqui (ver "O que não existe").
+
+## Pilha
+- PHP ^8.5, zero dependências em runtime (só PDO). BD por omissão: SQLite (`database/database.sqlite`); MySQL/MariaDB e PostgreSQL suportados.
+- Views Blade (subconjunto) compiladas para `storage/framework/views`. CSS/JS vanilla em `public/`; **sem Node** (Vite é opcional, ver `vendor/slendie/framework/docs/vite.md`).
+- Testes com Pest (`Slendie\Testing\TestCase`), análise com PHPStan (nível 6) e estilo com Pint (psr12).
+
+## Comandos
+```bash
+php slendie serve                 # servidor de desenvolvimento em http://127.0.0.1:8000
+php slendie list                  # todos os comandos
+php slendie migrate [--seed]      # migrações
+php slendie make:model Nome -m    # model + migração (também make:controller, make:request, make:middleware, make:seeder, make:provider, make:command, make:view)
+php slendie route:list
+php slendie ai:context --json     # contexto REAL do projecto: rotas, schema, config (sem segredos), info
+composer test                     # Pest
+composer analyse                  # PHPStan
+composer lint                     # Pint (--test); `composer fix` corrige
+```
+
+## Estrutura
+| Pasta | Conteúdo |
+|---|---|
+| `app/Http/Controllers` | Controllers (`extends App\Http\Controllers\Controller`) |
+| `app/Http/Requests` | Form requests (`extends Slendie\Http\FormRequest`) |
+| `app/Http/Middleware` | Middleware (`handle(Request $request, Closure $next)`) |
+| `app/Models` | Models (`extends Slendie\Model\Model`, com `$fillable`) |
+| `app/Providers` | Service providers (registados em `bootstrap/providers.php`) |
+| `bootstrap/app.php` | Arranque: rotas, middleware global, aliases, excepções |
+| `config/` | Configuração (`config('app.name')`, valores de `.env` via `env()`) |
+| `database/migrations`, `database/seeders` | Esquema e dados de exemplo |
+| `resources/views` | Views Blade; `errors/404.blade.php` e `500.blade.php` sobrepõem as da framework |
+| `routes/web.php`, `api.php`, `console.php` | Rotas web (sessão + CSRF), API (prefixo `/api`, CORS) e comandos por closure |
+| `public/` | Único directório servido (docroot). `index.php`, CSS, JS, imagens |
+| `storage/` | Logs, sessões, views compiladas (tem de ser gravável) |
+| `tests/Feature`, `tests/Unit` | Testes Pest |
+
+## Convenções
+- `declare(strict_types=1);` em todos os ficheiros PHP; PSR-12; classes em `App\`.
+- Validação: `FormRequest` (`php slendie make:request`) ou `$request->validate([...])`. Em JSON devolve 422; em HTML volta atrás com `$errors` e `old()`.
+- Escreve ou altera uma migração em vez de mexer na BD à mão; nunca edites uma migração já aplicada em produção.
+- Mass-assignment: declara `$fillable` nos models. Atributos fora dele lançam excepção (não são ignorados em silêncio).
+- Todo o `<form method="post">` leva `@csrf`. Rotas da API usam o token Bearer (`API_TOKEN`), não CSRF.
+- Escreve um teste Pest por comportamento novo (`$this->get()`, `$this->post()`, `$this->postJson()`, `assertDatabaseHas()`; `RefreshDatabase` para BD limpa).
+
+## O que existe
+`Route::` (grupos, resources, `apiResource`, nomes, middleware, model binding, fallback) · `Request`/`Response`/`redirect()`/`back()`/`abort()` · sessão com flash ·
+CSRF · CORS · cabeçalhos de segurança · Query Builder (`DB::table()`) · `Model` (casts, accessors/mutators, scopes `scopeNome`, relações `hasOne/hasMany/belongsTo`,
+eventos `creating/created/...`, `SoftDeletes`, `HasUuids`) · `Schema`/`Blueprint`/migrações · seeders · `Validator` e regras · `__()` com `lang/` ·
+Blade: `@extends @section @yield @include @stack @push @foreach @forelse @if @unless @isset @error @csrf @method @checked @json @php` e directivas personalizadas ·
+`vendor:publish` e descoberta de packages.
+
+## O que não existe (e alternativa)
+- **Eloquent completo:** não há `with()` (eager loading), `belongsToMany`, relações polimórficas nem factories. Usa `->load()`, `whereIn` ou um model para a tabela pivot; seeders com dados fixos.
+- **Artisan:** o CLI chama-se `php slendie`. Não existe `php artisan`, `tinker`, `queue:work`, `schedule:run`.
+- **Blade components** (`<x-...>`, slots, `@component`): usa `@include('partials.nome', [...])`.
+- **Auth, Policies/Gates, Sanctum, Fortify, Breeze:** instala `slendie/auth` quando for preciso.
+- **Queues, Jobs, Events/Listeners, Notifications, Broadcasting, Mail, Cache, Storage:** fora do core. Usa funções PHP nativas ou um package.
+- **Rate limiting (`throttle`), config/route cache, Mockery:** não existem.
+- Em caso de dúvida, **não inventes**: corre `php slendie ai:context --json`, lê `vendor/slendie/framework/docs/` ou procura no código em `vendor/slendie/framework/src`.
+
+## Fluxo sugerido
+1. Lê este ficheiro e corre `php slendie ai:context --json`.
+2. Escreve (ou ajusta) o teste, implementa, corre `composer test`.
+3. Antes de terminar: `composer analyse` e `composer lint`.
+
+> Este ficheiro foi gerado por `php slendie ai:agents-file --force` a partir de `AGENTS.md.stub`. Para personalizar o modelo,
+> copia o stub com `php slendie vendor:publish --tag=slendie-stubs` e edita `stubs/AGENTS.md.stub`.
