@@ -9,7 +9,7 @@
         { "name": "Luciano Closs", "email": "lcloss@gmail.com" }
     ],
     "support": {
-        "issues": "https://github.com/slendie/framework/issues",
+        "issues": "https://github.com/slendie/monorepo/issues",
         "source": "https://github.com/slendie/framework",
         "docs": "https://slendie.lcloss.dev/docs"
     },
