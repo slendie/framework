@@ -124,20 +124,29 @@ final class VendorPublishCommand extends Command
             return false;
         }
 
-        $ok = true;
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($from, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST,
         );
 
-        foreach ($iterator as $item) {
-            if (! $item instanceof \SplFileInfo || ! $item->isFile()) {
-                continue;
-            }
+        $files = [];
 
-            $relative = substr($item->getPathname(), strlen(rtrim($from, '/\\')) + 1);
+        foreach ($iterator as $item) {
+            if ($item instanceof \SplFileInfo && $item->isFile()) {
+                $files[] = $item->getPathname();
+            }
+        }
+
+        // A ordem do sistema de ficheiros não é garantida (Linux ≠ Windows): ordenar para que as migrações publicadas
+        // recebam timestamps na mesma ordem que os nomes de origem (ex.: `users` antes de `personal_access_tokens`).
+        sort($files, SORT_STRING);
+
+        $ok = true;
+
+        foreach ($files as $file) {
+            $relative = substr($file, strlen(rtrim($from, '/\\')) + 1);
             $target = rtrim($to, '/\\').DIRECTORY_SEPARATOR.$relative;
-            $ok = $this->publishFile($app, $item->getPathname(), $migrations ? $this->migrationTarget($target) : $target) && $ok;
+            $ok = $this->publishFile($app, $file, $migrations ? $this->migrationTarget($target) : $target) && $ok;
         }
 
         return $ok;
