@@ -278,7 +278,8 @@ it('joins (inner, left, closure) e whereExists', function (string $driver): void
 it('group by, having, order, limit, offset', function (string $driver): void {
     $db = liveDb($driver);
 
-    $grouped = $db->table('leads')->select('status')->selectRaw('count(*) as n')->groupBy('status')->having('n', '>', 1)->get();
+    // PostgreSQL não aceita aliases do SELECT no HAVING: repetir a agregação (portável nos 3 drivers).
+    $grouped = $db->table('leads')->select('status')->selectRaw('count(*) as n')->groupBy('status')->havingRaw('count(*) > ?', [1])->get();
 
     expect($grouped)->toHaveCount(1)
         ->and($grouped[0]['status'])->toBe('new')
