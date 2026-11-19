@@ -324,6 +324,28 @@ it('UrlGenerator::to/asset/current/previous', function (): void {
         ->and(asset('img/a.png'))->toBe('http://localhost/img/a.png');
 });
 
+it('UrlGenerator usa o host do pedido quando difere de app.url (virtual host)', function (): void {
+    config(['app.url' => 'http://localhost:8000']);
+    app()->instance('request', Request::create('http://atelier.php.test/'));
+
+    expect(asset('css/app.css'))->toBe('http://atelier.php.test/css/app.css')
+        ->and(url('x'))->toBe('http://atelier.php.test/x');
+});
+
+it('UrlGenerator mantém app.url quando o host coincide (https atrás de proxy)', function (): void {
+    config(['app.url' => 'https://Site.test/']);
+    app()->instance('request', Request::create('http://site.test/'));
+
+    expect(asset('css/app.css'))->toBe('https://Site.test/css/app.css');
+});
+
+it('UrlGenerator sem pedido (consola) usa app.url', function (): void {
+    config(['app.url' => 'https://site.test']);
+    app()->forgetInstance('request');
+
+    expect(url('x'))->toBe('https://site.test/x');
+});
+
 it('resource() aceita o nome com barras e parâmetros personalizados', function (): void {
     $routes = $this->router->resource('/articles/', PostController::class, ['only' => ['show'], 'parameters' => ['articles' => 'article']]);
 

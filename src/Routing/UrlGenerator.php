@@ -149,16 +149,40 @@ class UrlGenerator
         return $fallback !== false ? $this->to($fallback) : $this->to('/');
     }
 
-    /** URL base: `app.url` ou o do pedido actual. */
+    /**
+     * URL base. Num pedido HTTP vale o host do pedido, para o site funcionar em qualquer virtual host sem
+     * mexer no `.env`; se o host for o mesmo de `app.url`, usa-se `app.url` (mantém o https e o caminho
+     * atrás de um proxy que termina o TLS). Sem pedido (consola, filas) usa-se `app.url`.
+     */
     public function root(): string
     {
         $configured = $this->app->bound(Config::class) ? $this->app->make(Config::class)->get('app.url') : null;
+        $configured = is_string($configured) && $configured !== '' ? rtrim($configured, '/') : null;
+        $request = $this->request();
 
-        if (is_string($configured) && $configured !== '') {
-            return rtrim($configured, '/');
+        if ($request === null) {
+            return $configured ?? 'http://localhost';
         }
 
-        return $this->request()?->root() ?? 'http://localhost';
+        if ($configured !== null && $this->sameHost($configured, $request->host())) {
+            return $configured;
+        }
+
+        return $request->root();
+    }
+
+    /** O host[:porta] de $url é $host? */
+    protected function sameHost(string $url, string $host): bool
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['host'])) {
+            return false;
+        }
+
+        $configured = $parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+        return strcasecmp($configured, $host) === 0;
     }
 
     protected function routeKey(mixed $value): string
